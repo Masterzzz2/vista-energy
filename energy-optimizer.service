@@ -1,0 +1,25 @@
+[Unit]
+Description=Energy Optimizer - Fronius/Wattpilot/Tibber Steuerung
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=werner
+Group=werner
+WorkingDirectory=/home/werner/energy-optimizer
+EnvironmentFile=/home/werner/energy-optimizer/.env
+ExecStart=/usr/bin/python3 /home/werner/energy-optimizer/app/main.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/werner/energy-optimizer/logs/stdout.log
+StandardError=append:/home/werner/energy-optimizer/logs/stderr.log
+
+# Sicherheit
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/werner/energy-optimizer/data /home/werner/energy-optimizer/logs
+
+[Install]
+WantedBy=multi-user.target

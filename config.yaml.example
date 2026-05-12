@@ -1,0 +1,31 @@
+# Vista-Energy — Konfiguration (Beispiel)
+# Kopieren Sie diese Datei nach config.yaml und passen Sie die Werte an
+
+inverter:
+  type: fronius_gen24          # fronius_gen24 | sma_tripower | huawei_sun2000
+  ip: 192.168.1.xxx            # IP-Adresse Ihres Wechselrichters
+  modbus_port: 502
+  modbus_unit: 1
+
+tariff:
+  type: tibber                 # tibber | awattar | fixed
+  # api_token: YOUR_TIBBER_TOKEN  # Nur fuer Tibber
+
+pv:
+  kwp: 10.0                   # Installierte PV-Leistung in kWp
+  tilt: 30                    # Neigungswinkel in Grad
+  azimuth: 0                  # Ausrichtung (0=Sued, -90=Ost, 90=West)
+
+battery:
+  type: byd_hvs               # byd_hvs | lg_chem | generic
+  capacity_kwh: 10.0          # Gesamtkapazitaet in kWh
+  usable_kwh: 9.0             # Nutzbare Kapazitaet in kWh
+  min_soc: 5                  # Minimaler Ladestand in %
+
+location:
+  lat: 48.00                  # Breitengrad
+  lon: 11.00                  # Laengengrad
+
+wallbox:
+  type: fronius_wattpilot      # fronius_wattpilot | goe_charger | openwb | keba
+  ocpp_ws: ws://127.0.0.1:8889  # OCPP WebSocket URL

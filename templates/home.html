@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e1116">
+<meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="pragma" content="no-cache">
+<meta http-equiv="expires" content="0">
+<title>VistaEnergy · Start (v3)</title>
+<style>
+:root{
+  --bg:#0e1116; --panel:#171c24; --panel2:#1f2630; --line:#2a3340;
+  --txt:#e7ecf3; --muted:#9aa6b2;
+  --vista:#E87A30; --sun:#FACC15; --green:#3DDC84;
+  --akku:#22d3ee; --grid:#a78bfa; --load:#f472b6; --pv:#facc15;
+  --bad:#EF4444; --warn:#F5A524;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+body{padding-bottom:env(safe-area-inset-bottom)}
+
+/* Header */
+header{position:sticky;top:0;z-index:10;padding:12px 16px;
+  border-bottom:1px solid var(--line);
+  display:flex;justify-content:space-between;align-items:center;
+  background:rgba(14,17,22,.92);backdrop-filter:blur(10px)}
+header h1{margin:0;font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px}
+header .b{color:var(--vista)} header .i{color:var(--green)}
+header .actions{display:flex;gap:6px;align-items:center}
+
+/* Main grid */
+main{padding:14px;display:grid;gap:14px;
+  grid-template-columns:repeat(auto-fit,minmax(340px,1fr));max-width:1100px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.card h2{margin:0 0 12px;font-size:13px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1.2px;font-weight:600}
+.card.full{grid-column:1/-1}
+
+/* Mode-Buttons */
+.mode-grid{display:grid;gap:10px}
+.mode-grid .auto-hero{
+  width:100%;padding:18px;border-radius:14px;border:none;cursor:pointer;
+  font-size:16px;font-weight:700;text-align:left;
+  background:var(--panel2);color:var(--txt);border:2px solid var(--line);
+  transition:all .15s;min-height:64px}
+.mode-grid .auto-hero.active{
+  background:linear-gradient(135deg,var(--vista),var(--sun));color:#1a0f00;border-color:var(--vista);
+  box-shadow:0 6px 18px rgba(232,122,48,.35)}
+.mode-grid .auto-hero .em{font-size:22px;margin-right:8px}
+.mode-grid .auto-hero .desc{display:block;font-weight:500;font-size:12px;
+  color:var(--muted);margin-top:4px}
+.mode-grid .auto-hero.active .desc{color:#1a0f00;opacity:.8}
+.mode-grid .row4{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mode-grid .mbtn{
+  padding:14px 12px;border-radius:12px;border:2px solid var(--line);
+  background:var(--panel2);color:var(--txt);cursor:pointer;text-align:left;
+  transition:all .15s;min-height:88px}
+.mode-grid .mbtn .em{font-size:18px;display:block;margin-bottom:4px}
+.mode-grid .mbtn .lbl{font-weight:700;font-size:14px}
+.mode-grid .mbtn .desc{display:block;font-size:11px;color:var(--muted);margin-top:4px;line-height:1.3}
+.mode-grid .mbtn:hover{border-color:var(--green)}
+.mode-grid .mbtn.active{background:rgba(61,220,132,.15);border-color:var(--green)}
+.mode-grid .mbtn.active .desc{color:var(--green)}
+.mode-grid .mbtn[data-mode=eco].active{background:rgba(245,165,36,.15);border-color:var(--warn)}
+.mode-grid .mbtn[data-mode=eco].active .desc{color:var(--warn)}
+.mode-grid .mbtn[data-mode=off].active{background:rgba(239,68,68,.15);border-color:var(--bad)}
+.mode-grid .mbtn[data-mode=off].active .desc{color:var(--bad)}
+/* Wenn AUTO aktiv ist, werden die manuellen Buttons gedimmt */
+.mode-grid.auto-on .mbtn{opacity:.4;filter:grayscale(.4)}
+.mode-grid.auto-on .mbtn:hover{opacity:.7}
+
+/* Live-Energiefluss */
+.flow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.flow .item{padding:12px;background:var(--panel2);border-radius:10px;
+  border:1px solid var(--line)}
+.flow .item .lbl{color:var(--muted);font-size:11px;
+  text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:5px}
+.flow .item .val{font-size:20px;font-weight:700;margin-top:4px}
+.flow .item.pv .val{color:var(--pv)}
+.flow .item.load .val{color:var(--load)}
+.flow .item.akku .val{color:var(--akku)}
+.flow .item.grid .val{color:var(--grid)}
+.flow .arrow{font-size:14px;margin-left:6px;opacity:.7}
+
+/* Akku-Ring */
+.akku-card{display:flex;align-items:center;gap:18px}
+.akku-ring{position:relative;width:90px;height:90px;flex-shrink:0}
+.akku-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.akku-ring circle{fill:none;stroke-width:8}
+.akku-ring .bg{stroke:var(--line)}
+.akku-ring .val{stroke:var(--akku);stroke-linecap:round;
+  transition:stroke-dashoffset .5s,stroke .3s}
+.akku-ring .pct{position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font-size:20px;font-weight:700}
+.akku-info{flex:1;min-width:0}
+.akku-info .info-row{display:flex;justify-content:space-between;
+  font-size:13px;margin:4px 0;color:var(--muted)}
+.akku-info .info-row b{color:var(--txt)}
+
+/* Tagesplan */
+.plan-list{display:flex;flex-direction:column;gap:10px}
+.plan-row{padding:10px 12px;background:var(--panel2);border-radius:10px;
+  border-left:3px solid var(--green);font-size:14px;line-height:1.4}
+.plan-row.warn{border-left-color:var(--warn)}
+.plan-row.bad{border-left-color:var(--bad)}
+.plan-row .pl-icon{font-size:18px;margin-right:6px}
+.plan-row .pl-detail{color:var(--muted);font-size:12px;margin-top:3px;display:block}
+
+/* RFID-Tabelle */
+.rfid-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.rfid-tbl th,.rfid-tbl td{padding:8px 6px;text-align:left;
+  border-bottom:1px solid var(--line)}
+.rfid-tbl th{color:var(--muted);font-size:11px;text-transform:uppercase;
+  letter-spacing:.8px;font-weight:600}
+.rfid-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.rfid-tbl .chip{display:inline-flex;align-items:center;gap:6px;
+  padding:3px 8px;border-radius:999px;background:var(--panel2);
+  border:1px solid var(--line);font-size:12px;font-weight:600}
+.rfid-tbl .chip.werner{background:rgba(34,211,238,.15);border-color:#22d3ee;color:#22d3ee}
+.rfid-tbl .chip.monika{background:rgba(244,114,182,.15);border-color:#f472b6;color:#f472b6}
+.rfid-tbl .chip.pool{background:rgba(232,122,48,.15);border-color:var(--vista);color:var(--vista)}
+
+/* Buttons general */
+.btn{cursor:pointer;background:var(--panel2);color:var(--txt);
+  border:1px solid var(--line);padding:8px 12px;border-radius:10px;
+  font-weight:600;transition:all .15s ease;font-size:13px;min-height:36px;
+  text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--green)}
+.btn.expert{background:linear-gradient(135deg,#171c24,#1f2630);border-color:var(--vista)}
+
+/* Mobile */
+@media(max-width:720px){
+  header{padding:10px 12px}
+  header h1{font-size:16px}
+  main{padding:10px;gap:10px;grid-template-columns:1fr}
+  .card{padding:14px;border-radius:12px}
+  .akku-ring{width:80px;height:80px}
+  .akku-ring .pct{font-size:18px}
+  .flow .item .val{font-size:18px}
+  .mode-grid .row4{grid-template-columns:1fr 1fr}
+}
+.muted{color:var(--muted)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🐿️ <span class="b">Vista</span><span class="i">Energy</span></h1>
+  <div class="actions">
+    <span class="muted" id="last-update" style="font-size:11px">…</span>
+    <a href="/expert" class="btn expert" title="Alle Daten + Einstellungen">🎓 Experten</a>
+    <a href="/logout" class="btn" title="Abmelden">⏏</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- 1) MODE-AUSWAHL -->
+  <section class="card full">
+    <h2>🔌 Wallbox-Modus</h2>
+    <div class="mode-grid" id="mode-grid">
+      <button class="auto-hero" data-mode="auto" id="m-auto">
+        <span class="em">🤖</span><span style="font-size:16px">VOLL-AUTOMATIK</span>
+        <span class="desc">Vista regelt alles selbst — empfohlen für den Alltag</span>
+      </button>
+      <div class="muted" style="text-align:center;font-size:11px;margin:4px 0">— oder manuell wählen —</div>
+      <div class="row4">
+        <button class="mbtn" data-mode="eco" id="m-eco">
+          <span class="em">🌿</span><span class="lbl">ECO</span>
+          <span class="desc">Lädt nur PV-Überschuss. Wenn Tibber unter 11 ct (= 0 ct EPEX) ist, wird trotzdem aus Netz geladen — sonst MIX wählen.</span>
+        </button>
+        <button class="mbtn" data-mode="mix" id="m-mix">
+          <span class="em">🧠</span><span class="lbl">MIX</span>
+          <span class="desc">PV-Überschuss + Netz nur wenn Tibber günstig <span id="mix-info" style="color:var(--vista,#E87A30)">(≤ 11 ct, max 5 kW)</span></span>
+        </button>
+        <button class="mbtn" data-mode="fast" id="m-fast">
+          <span class="em">🚀</span><span class="lbl">SCHNELL</span>
+          <span class="desc">Maximum: Akku darf entladen, alles was geht.</span>
+        </button>
+        <button class="mbtn" data-mode="off" id="m-off">
+          <span class="em">⏸</span><span class="lbl">AUS</span>
+          <span class="desc">Software greift NICHT ein. Du steuerst manuell.</span>
+        </button>
+      </div>
+    </div>
+    <div id="mode-state" class="muted" style="font-size:12px;margin-top:10px">…</div>
+  </section>
+
+  <!-- 2) LIVE-ENERGIEFLUSS -->
+  <section class="card">
+    <h2>⚡ Live-Energiefluss</h2>
+    <div class="flow">
+      <div class="item pv"><div class="lbl">☀️ PV</div><div class="val" id="f-pv">–</div></div>
+      <div class="item load"><div class="lbl">🏠 Haus</div><div class="val" id="f-load">–</div></div>
+      <div class="item akku"><div class="lbl">🔋 Akku <span class="arrow" id="f-akku-dir"></span></div><div class="val" id="f-akku">–</div></div>
+      <div class="item grid"><div class="lbl">🔌 Netz <span class="arrow" id="f-grid-dir"></span></div><div class="val" id="f-grid">–</div></div>
+    </div>
+  </section>
+
+  <!-- 3) AKKU-RING -->
+  <section class="card">
+    <h2>🔋 Haus-Akku</h2>
+    <div class="akku-card">
+      <div class="akku-ring">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="44" class="bg"/>
+          <circle cx="50" cy="50" r="44" class="val" id="akku-arc"
+                  stroke-dasharray="276.5" stroke-dashoffset="276.5"/>
+        </svg>
+        <div class="pct" id="akku-pct">–</div>
+      </div>
+      <div class="akku-info">
+        <div class="info-row"><span>Min-SOC</span><b id="akku-min">65 %</b></div>
+        <div class="info-row"><span>Ziel 18:30</span><b id="akku-target">–</b></div>
+        <div class="info-row"><span>Status</span><b id="akku-state">–</b></div>
+        <div class="info-row"><span>Tibber jetzt</span><b id="tibber-now">–</b></div>
+      </div>
+    </div>
+    <!-- Akku-Sondersteuerung: Force-Charge + HOLD -->
+    <hr style="border:none;border-top:1px solid var(--line);margin:14px 0 10px">
+    <div id="akku-action-status" class="muted" style="font-size:12px;margin-bottom:8px">…</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn" id="btn-fc" title="Akku jetzt aus dem Netz nachladen (z.B. wenn morgen wenig Sonne)">⚡ Aus Netz nachladen</button>
+      <button class="btn" id="btn-hold" title="Akku einfrieren (lädt nicht + entlädt nicht)">🔒 Einfrieren</button>
+    </div>
+    <div style="margin-top:6px;font-size:11px;color:var(--muted);text-align:center">
+      Force-Charge bis <input id="fc-target-mini" type="number" min="50" max="100" value="80" style="width:48px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:2px 6px"/> %
+    </div>
+  </section>
+
+  <!-- 4) WATTPILOT-KACHEL -->
+  <section class="card">
+    <h2>🚗 Wallbox (Wattpilot)</h2>
+    <div class="flow">
+      <div class="item"><div class="lbl">Status</div><div class="val" id="wp-status" style="font-size:16px">–</div></div>
+      <div class="item"><div class="lbl">Leistung</div><div class="val" id="wp-power">–</div></div>
+      <div class="item"><div class="lbl">Strom</div><div class="val" id="wp-amps">–</div></div>
+      <div class="item"><div class="lbl">RFID-Chip</div><div class="val" id="wp-chip" style="font-size:14px">–</div></div>
+    </div>
+    <div id="wp-hint" class="muted" style="font-size:12px;margin-top:10px">…</div>
+  </section>
+
+  <!-- 5) TAGESPLAN -->
+  <section class="card full">
+    <h2>📋 Heutiger Tagesplan</h2>
+    <div id="plan-weather" class="muted" style="font-size:13px;margin-bottom:10px">…</div>
+    <div id="plan-list" class="plan-list"></div>
+  </section>
+
+  <!-- 5) LADUNGEN PRO RFID-CHIP - Detail-Liste mit Datum/Uhrzeit -->
+  <section class="card full">
+    <h2>👥 Ladungen pro Nutzer (zuletzt)</h2>
+    <div id="rfid-summary" class="muted" style="font-size:12px;margin-bottom:8px">…</div>
+    <table class="rfid-tbl">
+      <thead><tr>
+        <th>Nutzer</th>
+        <th>Datum / Uhrzeit</th>
+        <th class="num">kWh</th>
+        <th class="num">Dauer</th>
+      </tr></thead>
+      <tbody id="rfid-tbody"></tbody>
+    </table>
+  </section>
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmtW = w => (Math.abs(w) >= 1000) ? (w/1000).toFixed(2)+' kW' : Math.round(w)+' W';
+const fmtSign = w => (w > 0 ? '+' : '') + fmtW(w);
+
+async function fetchJson(url){
+  const r = await fetch(url, {credentials:'include'});
+  if(!r.ok) throw new Error(url + ' -> ' + r.status);
+  return r.json();
+}
+
+async function loadStatus(){
+  try{
+    // /api/wallbox/strategy hat alle Live-Daten direkt vom Fronius
+    const r = await fetchJson('/api/wallbox/strategy');
+    const fr = (r.controller && r.controller.fronius) || {};
+    const bp = r.battery_plan || {};
+    const bm = bp.battery_modbus || {};
+    // Live-Energiefluss (echte Fronius-Werte)
+    const pv = fr.pv_w || 0;
+    const load = Math.abs(fr.load_w || 0);
+    const akku = fr.akku_w || 0;   // <0 = lädt, >0 = entlädt
+    const grid = fr.grid_w || 0;    // >0 = Bezug, <0 = Einspeisung
+    $('f-pv').textContent = fmtW(pv);
+    $('f-load').textContent = fmtW(load);
+    $('f-akku').textContent = fmtW(Math.abs(akku));
+    $('f-grid').textContent = fmtW(Math.abs(grid));
+    $('f-akku-dir').textContent = (akku < -50) ? '⬇️ lädt' : (akku > 50 ? '⬆️ entlädt' : '·');
+    $('f-grid-dir').textContent = (grid > 50) ? '⬇️ Bezug' : (grid < -50 ? '⬆️ Einspeist' : '·');
+
+    // Akku-Ring (SOC kommt aus battery_modbus oder fronius)
+    const soc = Math.max(0, Math.min(100, bm.soc || fr.soc || 0));
+    $('akku-pct').textContent = soc.toFixed(0) + '%';
+    const circ = 2*Math.PI*44;
+    $('akku-arc').setAttribute('stroke-dasharray', circ);
+    $('akku-arc').setAttribute('stroke-dashoffset', circ * (1 - soc/100));
+    const arc = $('akku-arc');
+    if(soc < 30) arc.style.stroke = 'var(--bad)';
+    else if(soc < 65) arc.style.stroke = 'var(--warn)';
+    else arc.style.stroke = 'var(--akku)';
+
+    // Akku-Status (lädt / entlädt / idle / gesperrt)
+    let akkuState;
+    if(bm.out_wrte_pct === 0) akkuState = '🛡 Min-SOC-Schutz';
+    else if(akku < -50) akkuState = '⬇️ lädt mit ' + fmtW(Math.abs(akku));
+    else if(akku > 50) akkuState = '⬆️ entlädt ' + fmtW(akku);
+    else akkuState = 'idle';
+    $('akku-state').textContent = akkuState;
+
+    // Tibber
+    if(bp.current_price_ct != null){
+      $('tibber-now').textContent = bp.current_price_ct.toFixed(1) + ' ct/kWh';
+    }
+    if(bp.target_soc_1830 != null){
+      $('akku-target').textContent = bp.target_soc_1830.toFixed(0) + ' %';
+    }
+
+    // Wattpilot-Kachel
+    const ctrl = r.controller || {};
+    const wpStatus = (ctrl.wattpilot && ctrl.wattpilot.status) || ctrl.connector_status || ctrl.decision?.connector_status || '–';
+    const wpPower = (ctrl.wattpilot && ctrl.wattpilot.meter_w) ?? ctrl.decision?.wattpilot_w ?? 0;
+    const wpAmps = ctrl.wattpilot?.current_amps ?? ctrl.decision?.amps ?? '–';
+    const wpPhases = ctrl.wattpilot?.current_phases ?? ctrl.decision?.phases ?? '–';
+    const wpConnected = ctrl.wattpilot?.connected ?? false;
+    // Status-Label freundlich
+    const statusLabels = {
+      'Available': '⚪ frei',
+      'Preparing': '🔌 angesteckt',
+      'Charging': '⚡ lädt',
+      'SuspendedEV': '⏸ Auto pausiert',
+      'SuspendedEVSE': '⏸ Wallbox pausiert',
+      'Finishing': '✅ fertig',
+      'Unavailable': '🛑 Lock'
+    };
+    $('wp-status').textContent = statusLabels[wpStatus] || wpStatus;
+    $('wp-power').textContent = fmtW(wpPower);
+    $('wp-amps').textContent = (wpAmps !== '–') ? `${wpAmps} A · ${wpPhases}ph` : '–';
+    // Aktive Session: id_tag aus state.json
+    try{
+      const st = await fetchJson('/api/wallbox/strategy');
+      // Reuse - nutze schon geladen
+    }catch(e){}
+    // Hint mit Decision-Reason
+    if(ctrl.decision && ctrl.decision.reason){
+      $('wp-hint').textContent = '💡 ' + ctrl.decision.reason;
+    }
+    // Aktiver RFID-Chip aus active_session API holen
+    try{
+      const ses = await fetchJson('/api/wallbox/active_session');
+      if(ses && ses.id_tag){
+        const aliasMap = {'WERNER001':'Werner','MONI002':'Monika','e3bf3863':'Monika','POOL':'Pool'};
+        $('wp-chip').textContent = ses.alias || aliasMap[ses.id_tag] || ses.id_tag;
+      } else {
+        $('wp-chip').textContent = wpConnected ? '–' : '(offline)';
+      }
+    }catch(e){ $('wp-chip').textContent = wpConnected ? '–' : '(offline)'; }
+
+    $('last-update').textContent = new Date().toLocaleTimeString('de-DE');
+  }catch(e){ console.warn('status:', e); }
+}
+
+async function loadMode(){
+  try{
+    const m = await fetchJson('/api/wallbox/mode');
+    let mode = m.mode || 'auto';
+    if(mode === 'standard') mode = 'mix';
+    for(const x of ['auto','eco','mix','fast','off']){
+      const el = $('m-'+x);
+      if(el) el.classList.toggle('active', x === mode);
+    }
+    // Wenn AUTO aktiv: andere Buttons dimmen
+    $('mode-grid').classList.toggle('auto-on', mode === 'auto');
+    const labels = {auto:'🤖 VOLL-AUTOMATIK', eco:'🌿 ECO', mix:'🧠 MIX', fast:'🚀 SCHNELL', off:'⏸ AUS'};
+    $('mode-state').textContent = 'Aktiv: ' + (labels[mode] || mode.toUpperCase());
+  }catch(e){ console.warn('mode:', e); }
+}
+
+async function setMode(m){
+  try{
+    const r = await fetch('/api/wallbox/mode', {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({mode: m})
+    });
+    if(!r.ok){
+      const err = await r.json().catch(()=>({}));
+      alert('Mode konnte nicht gesetzt werden: ' + (err.error || r.status));
+      return;
+    }
+    await loadMode();
+  }catch(e){ alert('Mode-Fehler: ' + e); }
+}
+
+async function loadPlan(){
+  try{
+    const p = await fetchJson('/api/battery/plan');
+    if(p.weather_hint) $('plan-weather').textContent = '🌤 ' + p.weather_hint;
+    if(p.target_soc_1830 != null) $('akku-target').textContent = p.target_soc_1830.toFixed(0) + '%';
+    if(p.battery_modbus && p.battery_modbus.soc != null){
+      $('akku-min').textContent = '65 %';
+    }
+  }catch(e){ console.warn('plan:', e); }
+
+  // Empfehlungen
+  try{
+    const today = await fetchJson('/api/plan/today');
+    const recs = today.recommendations || [];
+    const list = $('plan-list');
+    list.innerHTML = '';
+    if(recs.length === 0){
+      list.innerHTML = '<div class="muted" style="font-size:13px">Keine Empfehlungen für jetzt.</div>';
+    } else {
+      for(const r of recs.slice(0,5)){
+        const cls = r.priority === 'warn' ? 'warn' : (r.priority === 'bad' ? 'bad' : '');
+        const div = document.createElement('div');
+        div.className = 'plan-row ' + cls;
+        div.innerHTML = `<span class="pl-icon">${r.icon || '✨'}</span>${r.title || r.summary || ''}` +
+                        (r.detail ? `<span class="pl-detail">${r.detail}</span>` : '');
+        list.appendChild(div);
+      }
+    }
+  }catch(e){ console.warn('plan/today:', e); }
+}
+
+function chipClass(alias, idTag){
+  const a = (alias || idTag || '').toLowerCase();
+  if(a.includes('werner')) return 'werner';
+  if(a.includes('moni')) return 'monika';
+  if(a.includes('pool')) return 'pool';
+  return '';
+}
+
+function fmtDate(iso){
+  if(!iso) return '–';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return iso;
+  return d.toLocaleString('de-DE', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+async function loadRfid(){
+  try{
+    // Detail-Sessions: letzte 20 mit Datum/Uhrzeit
+    const r = await fetchJson('/api/rfid/sessions?limit=30');
+    const tbody = $('rfid-tbody');
+    tbody.innerHTML = '';
+    const fallbackAliases = {
+      'WERNER001': 'Werner', 'MONI002': 'Monika',
+      'e3bf3863': 'Monika', 'POOL': 'Pool',
+      'NEXUS': 'Manuell (ohne Chip)'
+    };
+    const sessions = (r.sessions || [])
+      // Filter: keine 0-kWh-Eintraege (Test-Muell) und kein leerer id_tag
+      .filter(s => {
+        if(!s.id_tag) return false;
+        if(!s.energy_kwh || s.energy_kwh < 0.1) return false;
+        return true;
+      })
+      .slice(0, 20);
+    if(sessions.length === 0){
+      tbody.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center;padding:14px">Noch keine Ladungen aufgezeichnet.</td></tr>';
+    } else {
+      let totalKwh = 0;
+      for(const s of sessions){
+        const alias = s.alias || fallbackAliases[s.id_tag] || s.id_tag;
+        const cls = chipClass(alias, s.id_tag);
+        const dur = s.duration_min ? (s.duration_min >= 60 ? (s.duration_min/60).toFixed(1)+' h' : s.duration_min+' min') : '–';
+        const kwh = (s.energy_kwh || 0).toFixed(1);
+        totalKwh += s.energy_kwh || 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="chip ${cls}">${alias}</span></td>
+          <td style="font-size:12px;color:var(--muted)">${fmtDate(s.started_at)}</td>
+          <td class="num"><b>${kwh}</b></td>
+          <td class="num">${dur}</td>`;
+        tbody.appendChild(tr);
+      }
+      $('rfid-summary').textContent = `${sessions.length} Sessions · zusammen ${totalKwh.toFixed(1)} kWh`;
+    }
+  }catch(e){ console.warn('rfid:', e); }
+}
+
+// Mode-Click-Handler
+document.querySelectorAll('[data-mode]').forEach(b => {
+  b.addEventListener('click', () => setMode(b.dataset.mode));
+});
+
+// === Werner-Akku-Sondersteuerung (30.04.2026) ===
+async function loadAkkuActionStatus(){
+  try{
+    const fc = await fetchJson('/api/battery/force_charge');
+    const ho = await fetchJson('/api/battery/hold');
+    const fcBtn = $('btn-fc'), hoBtn = $('btn-hold');
+    const status = $('akku-action-status');
+    let label = [];
+    if(fc.active){
+      label.push(`⚡ Force-Charge bis ${fc.target_soc}% läuft`);
+      fcBtn.textContent = '⏹ Force-Charge stoppen';
+      fcBtn.classList.add('active');
+    } else {
+      fcBtn.textContent = '⚡ Aus Netz nachladen';
+      fcBtn.classList.remove('active');
+    }
+    if(ho.active){
+      const soc = ho.soc_at_freeze!=null ? ho.soc_at_freeze.toFixed(0)+'%' : '?';
+      label.push(`🔒 EINGEFROREN bei ${soc}`);
+      hoBtn.textContent = '🔓 Akku freigeben';
+      hoBtn.classList.add('active');
+    } else {
+      hoBtn.textContent = '🔒 Einfrieren';
+      hoBtn.classList.remove('active');
+    }
+    status.textContent = label.length ? label.join(' · ') : 'Akku im Auto-Modus';
+  }catch(e){ console.warn('akku-action:', e); }
+}
+
+async function fcToggle(){
+  try{
+    const fc = await fetchJson('/api/battery/force_charge');
+    if(fc.active){
+      if(!confirm('Force-Charge wirklich stoppen?')) return;
+      await fetch('/api/battery/force_charge/stop', {method:'POST', credentials:'include'});
+    } else {
+      const t = parseInt($('fc-target-mini').value, 10) || 80;
+      if(!confirm(`Akku jetzt aus dem Netz auf ${t}% laden?\n(Tibber-Preis wird ignoriert!)`)) return;
+      const r = await fetch('/api/battery/force_charge', {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({target_soc: t, max_w: 5000})
+      });
+      if(!r.ok){
+        const err = await r.json().catch(()=>({}));
+        alert('Fehler: ' + (err.error || r.status));
+      }
+    }
+    await loadAkkuActionStatus();
+  }catch(e){ alert('Fehler: ' + e); }
+}
+
+async function holdToggle(){
+  try{
+    const ho = await fetchJson('/api/battery/hold');
+    const enable = !ho.active;
+    const msg = enable
+      ? 'Akku auf jetzigem Stand einfrieren?\n(lädt nicht + entlädt nicht, bis du wieder freigibst)'
+      : 'Akku-Einfrieren aufheben? Normal-Betrieb wird wiederhergestellt.';
+    if(!confirm(msg)) return;
+    const r = await fetch('/api/battery/hold', {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({enable})
+    });
+    if(!r.ok){
+      const err = await r.json().catch(()=>({}));
+      alert('Fehler: ' + (err.error || r.status));
+    }
+    await loadAkkuActionStatus();
+  }catch(e){ alert('Fehler: ' + e); }
+}
+
+$('btn-fc').addEventListener('click', fcToggle);
+$('btn-hold').addEventListener('click', holdToggle);
+
+// === Werner Charge-Config (30.04.2026) - nur Read-Only-Anzeige im Anfaenger-Modus ===
+// Editieren passiert im Experten-Modus.
+async function loadChargeConfig(){
+  try{
+    const c = await fetchJson('/api/charge/config');
+    const t = (c.mix_tibber_threshold_ct ?? 11).toFixed(1);
+    const g = (c.mix_max_grid_kw ?? 5).toFixed(1);
+    const info = $('mix-info');
+    if(info) info.textContent = `(≤ ${t} ct, max ${g} kW)`;
+  }catch(e){ console.warn('cfg:', e); }
+}
+
+// initial + alle 8 s aktualisieren
+loadStatus(); loadMode(); loadPlan(); loadRfid(); loadAkkuActionStatus(); loadChargeConfig();
+setInterval(() => { loadStatus(); loadMode(); loadAkkuActionStatus(); }, 8000);
+setInterval(() => { loadPlan(); loadRfid(); loadChargeConfig(); }, 60000);
+</script>
+</body>
+</html>

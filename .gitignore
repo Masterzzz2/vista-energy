@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+config.yaml
+energy_optimizer.db
+.license.json
+*.env
+venv/

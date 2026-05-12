@@ -1,0 +1,1200 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VistaEnergy Optimizer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+	:root{
+	  --bg:#0e1116; --panel:#171c24; --panel2:#1f2630; --line:#2a3340;
+	  --txt:#e7ecf3; --muted:#9aa6b2; --accent:#3ddc84; --warn:#f5a524; --bad:#ef4444;
+	  --pv:#facc15; --akku:#22d3ee; --grid:#a78bfa; --load:#f472b6; --ev:#34d399;
+	  --accent-text:#06140b; --header-bg:rgba(14,17,22,.92); --shadow:rgba(0,0,0,.25);
+	  --chart-bg:#10141b; --json-bg:#0a0d12; --json-txt:#cdd9e5;
+	}
+	body[data-theme="light"]{
+	  --bg:#f4f7fb; --panel:#ffffff; --panel2:#eef3f8; --line:#d7e0ea;
+	  --txt:#111827; --muted:#5b6675; --accent:#15803d; --warn:#b7791f; --bad:#dc2626;
+	  --pv:#ca8a04; --akku:#0284c7; --grid:#7c3aed; --load:#be185d; --ev:#047857;
+	  --accent-text:#ffffff; --header-bg:rgba(248,250,252,.94); --shadow:rgba(15,23,42,.08);
+	  --chart-bg:#ffffff; --json-bg:#f8fafc; --json-txt:#1f2937;
+	}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+body{padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:10;padding:12px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:var(--header-bg);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+header h1{margin:0;font-size:17px;letter-spacing:.3px}
+header .sub{color:var(--muted);font-size:11px;line-height:1.3}
+main{padding:14px;display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));max-width:1400px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 8px 24px var(--shadow)}
+.card h2{margin:0 0 12px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:600}
+.kpi{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.kpi .v{font-size:36px;font-weight:700;line-height:1}
+.kpi .u{color:var(--muted);font-size:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row > *{flex:1 1 auto;min-width:0}
+.btn{cursor:pointer;background:var(--panel2);color:var(--txt);border:1px solid var(--line);padding:12px 14px;border-radius:12px;font-weight:600;transition:all .15s ease;font-size:14px;min-height:44px;touch-action:manipulation;-webkit-user-select:none;user-select:none;text-align:center}
+.btn:hover{border-color:var(--accent)}
+.btn:active{transform:scale(.97)}
+.btn.active{background:var(--accent);color:var(--accent-text);border-color:var(--accent);box-shadow:0 4px 12px rgba(61,220,132,.3)}
+.btn.warn.active{background:var(--warn);color:#1f1300;border-color:var(--warn);box-shadow:0 4px 12px rgba(245,165,36,.3)}
+.btn.bad.active{background:var(--bad);color:#fff;border-color:var(--bad);box-shadow:0 4px 12px rgba(239,68,68,.3)}
+.btn.small{padding:8px 12px;font-size:13px;font-weight:500;min-height:36px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th,.tbl td{padding:8px;text-align:left;border-bottom:1px solid var(--line)}
+.tbl th{color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.bar{height:10px;background:var(--panel2);border-radius:5px;overflow:hidden;position:relative}
+.bar > div{height:100%;background:linear-gradient(90deg,var(--akku),var(--accent));transition:width .3s ease}
+.bar .target{position:absolute;top:-3px;bottom:-3px;width:3px;background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.flow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.flow .item{padding:12px;background:var(--panel2);border-radius:10px;border:1px solid var(--line)}
+.flow .item .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.flow .item .val{font-size:18px;font-weight:700;margin-top:4px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.dot.ok{background:var(--accent)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+.note{color:var(--muted);font-size:12px;margin-top:8px}
+.json{background:var(--json-bg);border:1px solid var(--line);border-radius:8px;padding:10px;font:12px ui-monospace,monospace;color:var(--json-txt);max-height:240px;overflow:auto;white-space:pre}
+input[type=number],input[type=text],select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px inherit;min-height:38px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-size:12px;font-weight:600}
+.chip.werner{background:rgba(34,211,238,.15);border-color:#22d3ee;color:#22d3ee}
+.chip.moni{background:rgba(244,114,182,.15);border-color:#f472b6;color:#f472b6}
+
+/* Mobile-Optimierung */
+@media(max-width:720px){
+  header{padding:10px 12px}
+  header h1{font-size:15px}
+  header .sub{font-size:10px}
+  main{padding:10px;gap:10px;grid-template-columns:1fr}
+  .card{padding:14px;border-radius:12px}
+  .kpi .v{font-size:30px}
+  .flow{grid-template-columns:1fr 1fr}
+  .flow .item .val{font-size:17px}
+  .tbl th,.tbl td{padding:6px 4px;font-size:12px}
+  /* Sticky-Mode-Bar am unteren Rand */
+  .mode-bar{position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom) + 8px);
+	            background:var(--header-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+            border:1px solid var(--line);border-radius:14px;padding:8px;display:flex;gap:6px;z-index:50;
+            box-shadow:0 -4px 24px rgba(0,0,0,.4)}
+  .mode-bar .btn{flex:1;font-size:12px;padding:10px 6px}
+  body{padding-bottom:80px}
+}
+@media(min-width:721px){
+  .mode-bar{display:none}
+}
+
+/* Force-Charge-Bereich kompakt */
+.fc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+
+/* Ansicht + Verlauf */
+.view-switch{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:4px}
+.view-switch a{color:var(--muted);text-decoration:none;padding:7px 10px;border-radius:7px;font-size:12px;font-weight:700;letter-spacing:.04em}
+.view-switch a.active{background:var(--accent);color:var(--accent-text)}
+.theme-toggle{min-width:82px}
+.program-toggle{min-width:112px}
+.program-toggle.on{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.program-toggle.off{background:var(--bad);color:#fff;border-color:var(--bad)}
+.auto-card{grid-column:1/-1;background:linear-gradient(135deg,rgba(61,220,132,.12),rgba(34,211,238,.07))}
+.auto-grid{display:grid;grid-template-columns:minmax(220px,1.2fr) repeat(4,minmax(120px,.7fr));gap:10px;align-items:stretch}
+.auto-primary{font-size:18px;text-align:left;padding:16px 18px;border-radius:12px}
+.auto-primary .subtxt{display:block;color:rgba(6,20,11,.72);font-size:12px;font-weight:600;margin-top:4px}
+.auto-primary.active .subtxt{color:var(--accent-text);opacity:.78}
+.auto-stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}
+.auto-stat .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.auto-stat .val{font-size:18px;font-weight:700;margin-top:5px}
+.auto-status{margin-top:10px;color:var(--muted);font-size:13px}
+.chart-card{background:var(--chart-bg);color:var(--txt);border-color:var(--line);padding:0;overflow:hidden}
+.chart-card h2{color:var(--txt)}
+.chart-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px 0}
+.chart-wrap{position:relative;height:520px;padding:8px 18px 0}
+.chart-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-top:1px solid var(--line);background:var(--chart-bg)}
+.chart-date{display:flex;align-items:center;gap:18px;font-size:22px;font-weight:700;color:var(--txt)}
+.chart-arrow{width:34px;height:34px;border:0;background:transparent;color:#9aa6b2;font-size:34px;line-height:1;cursor:pointer}
+.chart-tabs{display:flex;align-items:center;gap:14px;font-size:15px;font-weight:700;letter-spacing:.08em}
+.chart-tabs button{border:0;background:transparent;color:#9aa6b2;padding:10px 0 12px;cursor:pointer;font:inherit;letter-spacing:inherit}
+.chart-tabs button.active{color:var(--txt);border-bottom:4px solid var(--accent)}
+.chart-tabs .sep{width:1px;height:24px;background:var(--line)}
+.chart-note{color:var(--muted);font-size:12px;padding:0 18px 12px}
+@media(max-width:720px){
+  .auto-grid{grid-template-columns:1fr}
+  .auto-primary{text-align:center}
+  .chart-wrap{height:390px;padding:6px 8px 0}
+  .chart-head{padding:12px 12px 0}
+  .chart-nav{padding:10px 12px;align-items:flex-start;flex-direction:column}
+  .chart-date{font-size:18px}
+  .chart-tabs{gap:9px;font-size:12px;letter-spacing:.04em;flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>⚡ VistaEnergy</h1>
+    <div class="sub">GEN24 · BYD 7,68 · Wattpilot · Tibber</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+	    <nav class="view-switch" aria-label="Ansicht wechseln">
+	      <a href="/" class="{{ '' if expert_mode else 'active' }}">EINFACH</a>
+	      <a href="/expert" class="{{ 'active' if expert_mode else '' }}">EXPERT</a>
+	    </nav>
+	    <button class="btn small program-toggle on" id="program-toggle" type="button" onclick="toggleProgram()">Programm AN</button>
+	    <button class="btn small theme-toggle" id="theme-toggle" type="button" onclick="toggleTheme()">Normal</button>
+	    <div class="sub" id="last-update">–</div>
+	    <a href="/logout" class="btn small" style="text-decoration:none;padding:6px 10px;font-size:12px" title="Logout">⏏</a>
+	  </div>
+</header>
+
+<!-- Sticky Mode-Bar (nur mobile) -->
+<nav class="mode-bar">
+  <button class="btn warn" data-mode="eco" id="mb-eco">🌿 ECO</button>
+  <button class="btn" data-mode="mix" id="mb-mix">🧠 MIX</button>
+  <button class="btn" data-mode="fast" id="mb-fast">🚀 SCHNELL</button>
+  <button class="btn bad" data-mode="off" id="mb-off">⏸ AUS</button>
+</nav>
+
+<main>
+  <!-- TAGESPLAN -->
+  <section class="card" style="grid-column:1/-1;background:linear-gradient(135deg,rgba(34,211,238,.08),rgba(61,220,132,.04))">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <h2 style="margin:0">🤖 Tagesplan</h2>
+      <div id="plan-weather" class="note">…</div>
+    </div>
+    <div id="plan-recommendations" style="display:flex;flex-direction:column;gap:10px;margin-top:14px"></div>
+  </section>
+
+  <!-- VOLLAUTOMATIK -->
+  <section class="card auto-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <h2 style="margin:0">⚡ Vollautomatisch</h2>
+      <span class="chip" id="auto-mode-chip">…</span>
+    </div>
+    <div class="auto-grid">
+      <button class="btn active auto-primary" id="auto-full-btn" onclick="setAutomationMode('ki')">
+        Vollautomatisch aktivieren
+        <span class="subtxt">Forecast + Tibber + Lernprofil regeln Akku und Wallbox</span>
+      </button>
+	      <div class="auto-stat"><div class="lbl">Lernphase</div><div class="val" id="auto-learning">–</div></div>
+	      <div class="auto-stat"><div class="lbl">Morgen PV</div><div class="val" id="auto-pv-tomorrow">–</div></div>
+	      <div class="auto-stat"><div class="lbl">Ziel 18:30</div><div class="val" id="auto-target">–</div></div>
+	      <div class="auto-stat"><div class="lbl">Netzladung</div><div class="val" id="auto-grid-charge">–</div></div>
+	    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn small" onclick="setAutomationMode('auto')">Automatisch</button>
+      <button class="btn small" onclick="setAutomationMode('manual')">Manuell</button>
+      <button class="btn small" onclick="loadAutomationStatus()">Status aktualisieren</button>
+    </div>
+    <div class="auto-status" id="auto-status">…</div>
+  </section>
+
+  <!-- WALLBOX MODE -->
+  <section class="card">
+    <h2>🔌 Wallbox Modus</h2>
+    <div class="row" style="margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn" data-mode="eco" id="m-eco">🌿 ECO<br><span style="font-weight:400;font-size:11px;color:var(--muted)">nur PV-Überschuss</span></button>
+      <button class="btn" data-mode="mix" id="m-mix">🧠 MIX<br><span style="font-weight:400;font-size:11px;color:var(--muted)">Netz + PV smart</span></button>
+      <button class="btn" data-mode="fast" id="m-fast">🚀 SCHNELL<br><span style="font-weight:400;font-size:11px;color:var(--muted)">alles, max Power</span></button>
+      <button class="btn" data-mode="off" id="m-off">⏸ AUS<br><span style="font-weight:400;font-size:11px;color:var(--muted)">Wallbox sperren</span></button>
+    </div>
+    <div id="wb-state" class="note">…</div>
+    <!-- Aktive Session (RFID + Live-kWh) -->
+    <div id="wb-session" style="display:none;margin-top:10px;padding:10px 12px;background:linear-gradient(135deg,rgba(34,211,238,.10),rgba(61,220,132,.10));border:1px solid var(--line);border-radius:10px"></div>
+    <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span class="note">Manuell:</span>
+      <button class="btn small" onclick="setCurrent(6)">6 A</button>
+      <button class="btn small" onclick="setCurrent(10)">10 A</button>
+      <button class="btn small" onclick="setCurrent(13)">13 A</button>
+      <button class="btn small" onclick="setCurrent(16)">16 A (max)</button>
+      <button class="btn small" onclick="wbCmd('pause')">⏸ Pause</button>
+      <button class="btn small" onclick="wbCmd('resume')">▶ Resume</button>
+    </div>
+  </section>
+
+  <!-- LIVE FLOW -->
+  <section class="card">
+    <h2>⚡ Live-Energiefluss</h2>
+    <div class="flow">
+      <div class="item"><div class="lbl" style="color:var(--pv)">☀ PV</div><div class="val" id="f-pv">– W</div></div>
+      <div class="item"><div class="lbl" style="color:var(--akku)">🔋 Akku</div><div class="val" id="f-akku">– W</div></div>
+      <div class="item"><div class="lbl" style="color:var(--grid)">🏠 Netz</div><div class="val" id="f-grid">– W</div></div>
+      <div class="item"><div class="lbl" style="color:var(--load)">⚡ Last</div><div class="val" id="f-load">– W</div></div>
+      <div class="item"><div class="lbl" style="color:var(--ev)">🚗 Wattpilot</div><div class="val" id="f-wp">– W</div></div>
+      <div class="item"><div class="lbl">💶 Preis</div><div class="val" id="f-price">– ct</div></div>
+    </div>
+  </section>
+
+  <!-- BATTERY -->
+  <section class="card">
+    <h2>🔋 Akku BYD HVS 7,68</h2>
+    <div class="kpi"><div class="v" id="b-soc">– %</div><div class="u" id="b-stat">–</div></div>
+    <div class="bar" style="margin:10px 0 4px"><div id="b-bar" style="width:0%"></div><div class="target" id="b-target" style="left:65%"></div></div>
+    <div class="note">Ziel um 18:30: <strong id="b-target-pct">65 %</strong> · Projiziert: <strong id="b-proj">–</strong></div>
+    <table class="tbl" style="margin-top:10px">
+      <tr><th>Lade-Limit</th><td id="b-inrate">– %</td><th>Entlade-Limit</th><td id="b-outrate">– %</td></tr>
+      <tr><th>Steuerung</th><td id="b-storctl">–</td><th>Min-Reserve</th><td id="b-rsv">– %</td></tr>
+      <tr><th>WChaMax</th><td id="b-wcmax">– W</td><th>Status</th><td id="b-cha">–</td></tr>
+    </table>
+    <div class="row" style="margin-top:10px">
+      <button class="btn small" onclick="batCharge(0)">🚫 Laden sperren</button>
+      <button class="btn small" onclick="batCharge(50)">↘ 50 %</button>
+      <button class="btn small" onclick="batRelease()">✅ Auto (frei)</button>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-weight:600">⚡ Force-Charge aus Netz</div>
+      <div id="fc-status" class="note">inaktiv</div>
+      <div class="row">
+        <label class="note" style="display:flex;align-items:center;gap:6px">Ziel-SOC
+          <input id="fc-target" type="number" min="20" max="100" value="80" style="width:60px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:4px"/>
+          %
+        </label>
+        <label class="note" style="display:flex;align-items:center;gap:6px">max
+          <input id="fc-power" type="number" min="500" max="7680" step="500" value="5000" style="width:80px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:4px"/>
+          W
+        </label>
+      </div>
+      <div class="row">
+        <button class="btn small warn" onclick="forceCharge()">⚡ Nachladen starten</button>
+        <button class="btn small" onclick="forceChargeStop()">⏹ Stoppen</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STRATEGY -->
+  <section class="card">
+    <h2>🧠 Aktuelle Strategie</h2>
+    <div id="strategy-summary" class="note">…</div>
+    <table class="tbl" style="margin-top:10px">
+      <tr><th>PV heute</th><td id="s-pv-today">–</td><th>PV Rest</th><td id="s-pv-rest">–</td></tr>
+      <tr><th>Tibber-Preis</th><td id="s-price">–</td><th>Overshoot 18:30</th><td id="s-overshoot">–</td></tr>
+      <tr><th>EV-Status</th><td id="s-ev-status">–</td><th>Strom-Soll</th><td id="s-amps">–</td></tr>
+    </table>
+    <div class="note" id="s-reason" style="margin-top:8px"></div>
+  </section>
+
+  <!-- WATTPILOT -->
+  <section class="card">
+    <h2>🚗 Wattpilot</h2>
+    <table class="tbl">
+      <tr><th>Verbunden</th><td id="w-conn">–</td><th>Status</th><td id="w-status">–</td></tr>
+      <tr><th>Modell</th><td id="w-model">–</td><th>Firmware</th><td id="w-fw">–</td></tr>
+      <tr><th>Aktueller Strom</th><td id="w-amps">– A</td><th>Phasen</th><td id="w-phases">–</td></tr>
+      <tr><th>Lade-Power</th><td id="w-power">– W</td><th>Tx-ID</th><td id="w-tx">–</td></tr>
+      <tr><th>Letzte Daten</th><td colspan=3 id="w-last">–</td></tr>
+    </table>
+  </section>
+
+  <!-- HEATPUMP (versteckt bis aktiviert) -->
+  <section class="card" id="card-heatpump" style="display:none">
+    <h2>♨ Warmwasser-Wärmepumpe (Bosch CS5000 DW)</h2>
+    <div id="hp-state" class="note">…</div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn small" onclick="hpSet(1)">⛔ Sperre</button>
+      <button class="btn small" onclick="hpSet(2)">▶ Normal</button>
+      <button class="btn small" onclick="hpSet(3)">☀ PV-Boost</button>
+      <button class="btn small" onclick="hpSet(4)">⚡ Sofort</button>
+    </div>
+    <div id="hp-suggest" class="note" style="margin-top:8px"></div>
+  </section>
+
+  <!-- SCHEDULES -->
+  <section class="card" style="grid-column:1/-1">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <h2 style="margin:0">📅 Lade-Schedule</h2>
+      <span class="note" id="sched-status">…</span>
+    </div>
+    <div id="sched-list" style="margin-top:10px;display:flex;flex-direction:column;gap:8px"></div>
+
+    <details style="margin-top:12px">
+      <summary style="cursor:pointer;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px">➕ Neue Schedule hinzufügen</summary>
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <input id="sn-name" type="text" placeholder="Name (z.B. Moni Mercedes)" style="grid-column:1/-1"/>
+        <div style="grid-column:1/-1">
+          <div class="note" style="margin-bottom:4px">Wochentage:</div>
+          <div class="row" id="sn-days" style="gap:4px"></div>
+        </div>
+        <label class="note">Start <input id="sn-start" type="time" value="13:30"/></label>
+        <label class="note">Ende  <input id="sn-end" type="time" value="17:00"/></label>
+        <label class="note">max A <input id="sn-amps" type="number" min="6" max="16" value="16"/></label>
+        <label class="note">Phasen
+          <select id="sn-phases"><option value="3">3</option><option value="1">1</option></select>
+        </label>
+        <label class="note" style="grid-column:1/-1;display:flex;align-items:center;gap:6px">
+          <input id="sn-hol" type="checkbox" checked/> Feiertage in Bayern überspringen
+        </label>
+        <button class="btn small" style="grid-column:1/-1" onclick="schedAdd()">💾 Schedule speichern</button>
+      </div>
+    </details>
+  </section>
+
+  <!-- RFID / Lade-Sessions -->
+  <section class="card" style="grid-column: 1 / -1">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <h2 style="margin:0">🪪 Ladungen pro RFID-Chip</h2>
+      <div class="row" style="flex:0 0 auto;gap:8px">
+        <select id="rfid-month" style="min-width:140px"></select>
+        <select id="rfid-tag-filter" style="min-width:140px"><option value="">alle Chips</option></select>
+        <button class="btn small" onclick="csvExport()" title="CSV herunterladen">📥 CSV</button>
+      </div>
+    </div>
+
+    <!-- Monats-Summary -->
+    <div id="rfid-summary" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"></div>
+
+    <!-- Sessions-Tabelle -->
+    <div style="overflow-x:auto;margin-top:14px">
+      <table class="tbl" id="rfid-sessions">
+        <thead>
+          <tr><th>Start</th><th>Ende</th><th>Dauer</th><th>Chip / Alias</th><th style="text-align:right">kWh</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Alias-Verwaltung -->
+    <details style="margin-top:12px">
+      <summary style="cursor:pointer;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:1px">⚙ Chip-Aliase verwalten</summary>
+      <div style="margin-top:10px">
+        <div id="rfid-alias-list"></div>
+        <div class="row" style="margin-top:10px">
+          <input id="alias-tag" type="text" placeholder="RFID-ID (z.B. ABC123…)" style="flex:2 1 200px"/>
+          <input id="alias-name" type="text" placeholder="Alias (Werner / Moni / …)" style="flex:1 1 140px"/>
+          <button class="btn small" onclick="aliasSave()">💾 Speichern</button>
+        </div>
+        <div class="note">Tipp: Lade kurz mit dem Chip – die ID erscheint dann automatisch in der Tabelle. Du kannst sie hier kopieren und einen Namen vergeben.</div>
+      </div>
+    </details>
+  </section>
+
+  {% if expert_mode %}
+  <!-- CHART -->
+  <section class="card chart-card" style="grid-column: 1 / -1">
+    <div class="chart-head">
+      <h2 style="margin:0">Verlauf</h2>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-power"></canvas></div>
+    <div class="chart-nav">
+      <div class="chart-date">
+        <button class="chart-arrow" type="button" aria-label="Vorheriger Zeitraum">‹</button>
+        <span id="chart-date-label">–</span>
+        <button class="chart-arrow" type="button" aria-label="Naechster Zeitraum">›</button>
+      </div>
+      <div class="chart-tabs">
+        <button data-range="today" id="r-today">TAG</button><span class="sep"></span>
+        <button data-range="month" id="r-month">MONAT</button><span class="sep"></span>
+        <button data-range="year" id="r-week">JAHR</button><span class="sep"></span>
+        <button data-range="total" id="r-total">GESAMT</button>
+      </div>
+    </div>
+    <div class="chart-note" id="chart-info">…</div>
+  </section>
+  {% endif %}
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = (n, u='W') => (n==null||isNaN(n))?'–':`${Math.round(n)} ${u}`;
+const fmtKWh = n => (n==null||isNaN(n))?'–':`${Number(n).toFixed(1)} kWh`;
+const fmtPct = n => (n==null||isNaN(n))?'–':`${Number(n).toFixed(1)} %`;
+const fmtCt  = n => (n==null||isNaN(n))?'–':`${Number(n).toFixed(2)} ct/kWh`;
+let programEnabled = true;
+
+function cssVar(name){
+  return getComputedStyle(document.body).getPropertyValue(name).trim();
+}
+
+function chartTheme(){
+  const light = document.body.dataset.theme === 'light';
+  return {
+    axis: cssVar('--muted') || '#9aa6b2',
+    text: cssVar('--txt') || '#dbe3ec',
+    line: cssVar('--line') || '#2a3340',
+    grid: light ? 'rgba(17,24,39,.10)' : 'rgba(255,255,255,.08)',
+    tooltipBg: light ? '#ffffff' : '#111827',
+    tooltipText: cssVar('--txt') || '#dbe3ec',
+  };
+}
+
+function applyChartTheme(){
+  if(!chartPower) return;
+  const t = chartTheme();
+  chartPower.options.plugins.legend.labels.color = t.text;
+  chartPower.options.plugins.tooltip.backgroundColor = t.tooltipBg;
+  chartPower.options.plugins.tooltip.borderColor = t.line;
+  chartPower.options.plugins.tooltip.titleColor = t.text;
+  chartPower.options.plugins.tooltip.bodyColor = t.tooltipText;
+  chartPower.options.scales.x.ticks.color = t.axis;
+  chartPower.options.scales.x.border.color = t.line;
+  chartPower.options.scales.watts.ticks.color = t.axis;
+  chartPower.options.scales.watts.title.color = t.axis;
+  chartPower.options.scales.watts.grid.color = t.grid;
+  chartPower.options.scales.percent.ticks.color = t.axis;
+  chartPower.options.scales.percent.title.color = t.axis;
+  chartPower.update('none');
+}
+
+function setTheme(theme){
+  const next = theme === 'light' ? 'light' : 'dark';
+  document.body.dataset.theme = next;
+  localStorage.setItem('vista-theme', next);
+  const btn = $('theme-toggle');
+  if(btn) btn.textContent = next === 'light' ? 'Dunkel' : 'Normal';
+  applyChartTheme();
+}
+
+function toggleTheme(){
+  setTheme(document.body.dataset.theme === 'light' ? 'dark' : 'light');
+}
+
+function initTheme(){
+  setTheme(localStorage.getItem('vista-theme') || 'dark');
+}
+
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  return r.json();
+}
+
+function renderProgramState(program){
+  programEnabled = !program || program.enabled !== false;
+  const btn = $('program-toggle');
+  if(!btn) return;
+  btn.textContent = programEnabled ? 'Programm AN' : 'Programm AUS';
+  btn.classList.toggle('on', programEnabled);
+  btn.classList.toggle('off', !programEnabled);
+  btn.title = programEnabled ? 'Komplette Steuerung ausschalten' : 'Komplette Steuerung einschalten';
+}
+
+function ensureProgramOn(){
+  if(programEnabled) return true;
+  alert('Programm ist ausgeschaltet. Bitte zuerst oben auf "Programm AUS" klicken, um es wieder einzuschalten.');
+  return false;
+}
+
+async function loadProgramState(){
+  try{
+    const s = await api('/api/program');
+    renderProgramState(s.program);
+  }catch(e){
+    console.error('program', e);
+  }
+}
+
+async function setProgramEnabled(enabled){
+  const r = await api('/api/program', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled})});
+  if(r.error || r.success === false){
+    alert('Programm konnte nicht geschaltet werden: ' + (r.error || 'unbekannter Fehler'));
+    return;
+  }
+  renderProgramState(r.program);
+  await Promise.all([loadAutomationStatus(), loadAll(), refreshForceChargeStatus()]);
+}
+
+function toggleProgram(){
+  setProgramEnabled(!programEnabled);
+}
+
+async function loadAll(){
+  try{
+    const [strategy, battery, active] = await Promise.all([
+      api('/api/wallbox/strategy'),
+      api('/api/battery/modbus').catch(()=>({})),
+      api('/api/wallbox/active_session').catch(()=>({active:false}))
+	    ]);
+    renderProgramState(strategy.program);
+    render(strategy, battery);
+    renderActiveSession(active);
+    $('last-update').textContent = new Date().toLocaleTimeString('de-DE');
+  }catch(e){
+    console.error(e);
+  }
+}
+
+function renderActiveSession(a){
+  const box = $('wb-session');
+  if(!a || !a.active || !a.session){
+    box.style.display = 'none';
+    return;
+  }
+  const s = a.session;
+  const cls = aliasClass(s.alias);
+  const who = s.alias
+    ? `<span class="chip ${cls}">🪪 ${s.alias}</span>`
+    : `<span class="chip">🪪 <code style="font-size:11px">${s.id_tag||'unbekannt'}</code></span>`;
+  const elapsed = (s.elapsed_min!=null) ? `${s.elapsed_min} min` : '–';
+  const liveKwh = (s.live_kwh!=null) ? `<b>${s.live_kwh.toFixed(2)} kWh</b>` : '–';
+  const livePower = (s.live_power_w!=null) ? `${Math.round(s.live_power_w)} W` : '–';
+  const since = s.started_local || '';
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      ${who}
+      <span style="color:var(--muted);font-size:12px">seit ${since} · ${elapsed}</span>
+      <span style="margin-left:auto;font-size:14px">⚡ ${livePower} · ${liveKwh}</span>
+    </div>`;
+}
+
+function render(s, bm){
+  // Mode (beide Button-Sets aktualisieren). 'standard' als Alias auf 'mix'
+  const mode = (s.mode === 'standard' ? 'mix' : s.mode);
+  for(const m of ['eco','mix','fast','off']){
+    for(const prefix of ['m-','mb-']){
+      const el = $(prefix+m);
+      if(!el) continue;
+      el.classList.toggle('active', m===mode);
+      if(m==='off') el.classList.add('bad');
+      if(m==='eco') el.classList.add('warn');
+    }
+  }
+  const dec = (s.controller&&s.controller.decision)||{};
+  const wp = (s.controller&&s.controller.wattpilot)||{};
+  const fr = (s.controller&&s.controller.fronius)||{};
+  const plan = s.battery_plan||{};
+
+  // Wallbox-Status-Notiz
+  const evIcon = wp.connected? (dec.ev_connected?'🚗':'🔌'):'❌';
+  const wallboxMode = mode === 'manual' ? 'MANUELL' : (mode || '–').toUpperCase();
+  $('wb-state').innerHTML = `${evIcon} ${wp.status||'–'} · Modus: <b>${wallboxMode}</b> · Strom-Soll: <b>${dec.amps??'–'} A</b> @ ${dec.phases??'–'}ph`;
+
+  // Live-Flow
+  $('f-pv').textContent   = fmt(fr.pv_w);
+  $('f-akku').textContent = fmt(fr.akku_w);   // negativ = lade
+  $('f-grid').textContent = fmt(fr.grid_w);
+  $('f-load').textContent = fmt(fr.load_w);
+  $('f-wp').textContent   = fmt(wp.meter_w);
+  $('f-price').textContent= plan.current_price_ct!=null?fmtCt(plan.current_price_ct):'–';
+
+  // Battery
+  const soc = (bm.soc!=null?bm.soc:plan.current_soc) || 0;
+  $('b-soc').textContent = fmtPct(soc);
+  $('b-bar').style.width = Math.max(0, Math.min(100, soc)) + '%';
+  $('b-target').style.left = (plan.target_soc_1830||65) + '%';
+  $('b-target-pct').textContent = (plan.target_soc_1830||65) + ' %';
+  $('b-proj').textContent = fmtPct(plan.projected_soc_1830);
+  $('b-stat').textContent = bm.cha_st_name||'–';
+
+  if(bm && !bm.error){
+    $('b-inrate').textContent  = fmtPct(bm.in_wrte_pct);
+    $('b-outrate').textContent = fmtPct(bm.out_wrte_pct);
+    $('b-storctl').textContent = bm.storctl_mod_name||'–';
+    $('b-rsv').textContent     = fmtPct(bm.min_rsv_pct);
+    $('b-wcmax').textContent   = fmt(bm.wchamax_w);
+    $('b-cha').textContent     = bm.cha_st_name||'–';
+  }
+
+  // Strategy
+  const overshoot = plan.overshoot;
+  const dotClass = overshoot ? 'warn' : 'ok';
+  $('strategy-summary').innerHTML = `<span class="dot ${dotClass}"></span><strong>${dec.action?.toUpperCase()||'–'}</strong> – ${dec.reason||''}`;
+  $('s-pv-today').textContent  = fmtKWh(plan.pv_total_today_kwh);
+  $('s-pv-rest').textContent   = fmtKWh(plan.pv_remaining_kwh);
+  $('s-price').textContent     = plan.current_price_ct!=null?fmtCt(plan.current_price_ct):'–';
+  $('s-overshoot').innerHTML   = overshoot ? '<span class="dot warn"></span>JA – Akku zu schnell voll' : '<span class="dot ok"></span>nein';
+  $('s-ev-status').textContent = wp.status||'–';
+  $('s-amps').textContent      = `${dec.amps??'–'} A @ ${dec.phases??'–'} ph`;
+  $('s-reason').textContent    = `Letzte Entscheidung: ${s.controller?.time||''}`;
+
+  // Wattpilot
+  $('w-conn').innerHTML  = wp.connected ? '<span class="dot ok"></span>ja' : '<span class="dot bad"></span>nein';
+  $('w-status').textContent = wp.status||'–';
+  // Wattpilot detailed not in strategy, fetch separately if needed
+  $('w-amps').textContent = (wp.current_amps??'–') + ' A';
+  $('w-phases').textContent = wp.current_phases??'–';
+  $('w-power').textContent = fmt(wp.meter_w);
+  $('w-tx').textContent = wp.transaction_id??'–';
+
+}
+
+// --- Aktionen ---
+async function setMode(m){
+  if(!ensureProgramOn()) return;
+  await api('/api/wallbox/mode', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode:m})});
+  await loadAll();
+}
+async function setCurrent(a){
+  if(!ensureProgramOn()) return;
+  await api('/api/wallbox/set_current', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({amps:a, phases:3})});
+  await Promise.all([loadAll(), loadAutomationStatus()]);
+}
+async function wbCmd(cmd){
+  if(!ensureProgramOn()) return;
+  await api('/api/wallbox/' + cmd, {method:'POST'});
+  await Promise.all([loadAll(), loadAutomationStatus()]);
+}
+async function batCharge(pct){
+  if(!ensureProgramOn()) return;
+  if(!confirm(`Akku-Lade-Limit auf ${pct}% setzen?`)) return;
+  await api('/api/battery/charge_limit', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pct})});
+  await loadAll();
+}
+async function batRelease(){
+  if(!ensureProgramOn()) return;
+  await api('/api/battery/release', {method:'POST'});
+  await loadAll();
+}
+async function forceCharge(){
+  if(!ensureProgramOn()) return;
+  const t = parseInt($('fc-target').value, 10);
+  const w = parseInt($('fc-power').value, 10);
+  if(!confirm(`Akku aus Netz nachladen bis ${t}% mit max ${w} W ?`)) return;
+  const r = await api('/api/battery/force_charge', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({target_soc:t, max_w:w})});
+  if(r.error) alert('Fehler: '+r.error);
+  await loadAll();
+}
+async function forceChargeStop(){
+  if(!ensureProgramOn()) return;
+  await api('/api/battery/force_charge/stop', {method:'POST'});
+  await loadAll();
+}
+async function refreshForceChargeStatus(){
+  try{
+    const fc = await api('/api/battery/force_charge');
+    if(fc.active){
+      $('fc-status').innerHTML = `<span class="dot warn"></span>aktiv → Ziel ${fc.target_soc}% (max ${fc.max_w} W) seit ${new Date(fc.started).toLocaleTimeString('de-DE')}`;
+    } else {
+      $('fc-status').innerHTML = '<span class="dot ok"></span>inaktiv';
+    }
+  }catch(e){}
+}
+
+// Mode-Buttons binden (beide Sets - Card + Sticky-Bar)
+for(const b of document.querySelectorAll('[data-mode]')){
+  b.addEventListener('click', ()=> setMode(b.dataset.mode));
+}
+
+// ===== RFID =====
+async function loadRfid(){
+  const month = $('rfid-month').value || currentMonth();
+  const tag   = $('rfid-tag-filter') ? $('rfid-tag-filter').value : '';
+  const sessUrl = '/api/rfid/sessions?month=' + month + (tag?('&tag='+encodeURIComponent(tag)):'');
+  try{
+    const [summary, sessions, aliases] = await Promise.all([
+      api('/api/rfid/summary?months=12'),
+      api(sessUrl),
+      api('/api/rfid/aliases')
+    ]);
+    renderRfidSummary(summary, month);
+    renderRfidSessions(sessions);
+    renderAliases(aliases);
+    fillTagFilter(aliases, sessions.sessions);
+  }catch(e){
+    console.error(e);
+  }
+}
+
+function currentMonth(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function fillMonthSelect(months){
+  // Ergaenze fehlende Monate, sortiert absteigend
+  const sel = $('rfid-month');
+  if(sel.options.length>0) return;
+  const set = new Set(months);
+  set.add(currentMonth());
+  const arr = [...set].sort().reverse();
+  sel.innerHTML = arr.map(m=>`<option value="${m}">${formatMonth(m)}</option>`).join('');
+}
+
+function formatMonth(m){
+  const [y, mm] = m.split('-');
+  const names = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  return `${names[parseInt(mm)-1]} ${y}`;
+}
+
+function aliasClass(name){
+  if(!name) return '';
+  const l = name.toLowerCase();
+  if(l.includes('werner')) return 'werner';
+  if(l.includes('moni'))   return 'moni';
+  return '';
+}
+
+function renderRfidSummary(d, currentMonthStr){
+  fillMonthSelect(Object.keys(d.totals||{}));
+  const rows = (d.rows||[]).filter(r=>r.month===currentMonthStr);
+  const total = (d.totals||{})[currentMonthStr] || 0;
+  const html = [
+    `<div class="chip"><b>Σ ${total.toFixed(2)} kWh</b> Monat</div>`,
+    ...rows.map(r=>{
+      const cls = aliasClass(r.alias);
+      const label = r.alias || r.id_tag.slice(0,8) || 'unbekannt';
+      return `<div class="chip ${cls}">${label} · <b>${r.kwh.toFixed(2)} kWh</b> · ${r.sessions}×</div>`;
+    })
+  ].join('');
+  $('rfid-summary').innerHTML = html || '<div class="note">keine Lade-Sessions in diesem Monat</div>';
+}
+
+function renderRfidSessions(d){
+  const tb = $('rfid-sessions').querySelector('tbody');
+  if(!d.sessions || !d.sessions.length){
+    tb.innerHTML = '<tr><td colspan=5 class="note" style="padding:14px;text-align:center">Noch keine Sessions im gewählten Monat.</td></tr>';
+    return;
+  }
+  tb.innerHTML = d.sessions.map(s=>{
+    const start = s.started_at ? new Date(s.started_at).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '–';
+    const end   = s.stopped_at ? new Date(s.stopped_at).toLocaleString('de-DE',{hour:'2-digit',minute:'2-digit'}) : '<span class="dot warn"></span>läuft…';
+    const dur   = s.duration_min!=null ? `${s.duration_min} min` : '–';
+    const tag   = s.id_tag || '–';
+    const cls   = aliasClass(s.alias);
+    const who   = s.alias ? `<span class="chip ${cls}">${s.alias}</span>` : `<code style="font-size:11px;color:var(--muted)">${tag}</code>`;
+    const kwh   = s.energy_kwh!=null ? `<b>${s.energy_kwh.toFixed(2)}</b>` : '–';
+    return `<tr><td>${start}</td><td>${end}</td><td>${dur}</td><td>${who}</td><td style="text-align:right">${kwh}</td></tr>`;
+  }).join('');
+}
+
+function renderAliases(map){
+  const list = Object.entries(map||{});
+  const html = list.length
+    ? list.map(([tag,name])=>{
+        const cls = aliasClass(name);
+        return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0">
+                  <span class="chip ${cls}">${name}</span>
+                  <code style="font-size:12px;color:var(--muted)">${tag}</code>
+                  <button class="btn small" style="margin-left:auto" onclick="aliasDelete('${tag}')">🗑</button>
+                </div>`;
+      }).join('')
+    : '<div class="note">keine Aliase definiert</div>';
+  $('rfid-alias-list').innerHTML = html;
+}
+
+async function aliasSave(){
+  const tag = $('alias-tag').value.trim();
+  const name = $('alias-name').value.trim();
+  if(!tag){ alert('Bitte RFID-ID eingeben'); return; }
+  await api('/api/rfid/aliases', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id_tag:tag, alias:name})});
+  $('alias-tag').value=''; $('alias-name').value='';
+  await loadRfid();
+}
+async function aliasDelete(tag){
+  if(!confirm('Alias fuer '+tag+' loeschen?')) return;
+  await api('/api/rfid/aliases', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({delete:tag})});
+  await loadRfid();
+}
+
+// ===== Tagesplan =====
+async function loadPlan(){
+  try{
+    const p = await api('/api/plan/today');
+    const w = p.weather||{};
+    $('plan-weather').innerHTML =
+      `${w.emoji||''} heute ${w.today_kwh??'–'} kWh · morgen <b>${w.tomorrow_kwh??'–'} kWh</b>` +
+      (w.is_holiday_today ? ' · 🎉 Feiertag' : '');
+    const recs = p.recommendations||[];
+    $('plan-recommendations').innerHTML = recs.map(r=>`
+      <div style="display:flex;gap:12px;padding:10px;background:var(--panel2);border-radius:10px;border:1px solid var(--line)">
+        <div style="font-size:22px;flex-shrink:0">${r.icon}</div>
+        <div style="min-width:0">
+          <div style="font-weight:600;margin-bottom:2px">${r.title}</div>
+          <div class="note" style="margin:0">${r.detail}</div>
+        </div>
+      </div>`).join('');
+  }catch(e){ console.error('plan',e); }
+}
+
+// ===== Vollautomatik =====
+function automationLabel(mode){
+  if(mode === 'ki') return 'VOLLAUTOMATISCH';
+  if(mode === 'auto') return 'AUTOMATISCH';
+  if(mode === 'manual') return 'MANUELL';
+  return 'UNBEKANNT';
+}
+
+async function setAutomationMode(mode){
+  if(!ensureProgramOn()) return;
+  const r = await api('/api/mode', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode})});
+  if(r.error || r.success === false){
+    alert('Automatik konnte nicht gesetzt werden: ' + (r.error || 'unbekannter Fehler'));
+    return;
+  }
+  await Promise.all([loadAutomationStatus(), loadAll()]);
+}
+
+async function loadAutomationStatus(){
+  try{
+	    const s = await api('/api/automation/status');
+	    renderProgramState(s.program);
+	    const mode = s.mode || 'auto';
+    const learning = s.learning || {};
+    const plan = s.plan || {};
+    $('auto-mode-chip').textContent = automationLabel(mode);
+    $('auto-mode-chip').className = 'chip ' + (mode === 'manual' ? '' : 'werner');
+    $('auto-full-btn').classList.toggle('active', mode === 'ki');
+	    $('auto-learning').textContent = `${learning.learning_days ?? 0}/7 Tage`;
+	    $('auto-pv-tomorrow').textContent = plan.pv_tomorrow_kwh!=null ? `${Number(plan.pv_tomorrow_kwh).toFixed(1)} kWh` : '–';
+	    $('auto-target').textContent = plan.target_soc_1830!=null ? `${plan.target_soc_1830} %` : '–';
+	    const gridCharge = plan.grid_charge || {};
+	    $('auto-grid-charge').textContent = gridCharge.should_charge
+	      ? `AN ${gridCharge.target_soc ?? '–'}%`
+	      : 'aus';
+	    const learnText = learning.learning_complete
+	      ? 'Lernprofil ist aktiv.'
+	      : `Lernprofil sammelt noch Daten (${learning.days_remaining ?? 0} Tage bis voll gelernt).`;
+	    const modeText = mode === 'ki'
+	      ? 'Vollautomatik regelt mit Prognose, Tibber-Preis und Lernprofil.'
+	      : mode === 'auto'
+	        ? 'Automatik regelt regelbasiert mit Prognose und Tibber-Preis.'
+	        : 'Manueller Modus: automatische Optimierung ist pausiert.';
+	    const programText = programEnabled ? '' : 'Programm ist ausgeschaltet: keine automatische Steuerung aktiv.';
+		    const loadText = plan.learned_load_today_kwh
+		      ? `Gelernte Tageslast ${Number(plan.learned_load_today_kwh).toFixed(1)} kWh.`
+		      : '';
+		    const gridText = gridCharge.reason ? `Netzladung: ${gridCharge.reason}.` : '';
+	    $('auto-status').textContent = `${programText} ${modeText} ${learnText} ${plan.weather_hint || ''} ${loadText} ${gridText}`.trim();
+	  }catch(e){
+    console.error('automation', e);
+  }
+}
+
+// ===== Schedules =====
+const DAY_NAMES = ['', 'Mo','Di','Mi','Do','Fr','Sa','So'];
+
+function renderSchedules(d){
+  const status = d.is_holiday_today
+    ? '🎉 Heute ist Feiertag (Schedules werden übersprungen)'
+    : (d.active_now ? `⚡ JETZT aktiv: ${d.active_now.name}` :
+       d.next_today ? `⏭ Heute geplant: ${d.next_today.name} ab ${d.next_today.start}` :
+       'Heute keine Schedule geplant');
+  $('sched-status').textContent = status;
+
+  const list = d.schedules || [];
+  const isActiveNow = (s) => d.active_now && d.active_now.name === s.name;
+  $('sched-list').innerHTML = list.length ? list.map((s, i) => {
+    const days = (s.days||[]).map(d=>DAY_NAMES[d]).join(' · ');
+    const cls = aliasClass(s.alias||s.name);
+    const power = `${s.max_amps}A × ${s.phases}ph (${(s.max_amps*s.phases*230/1000).toFixed(1)} kW)`;
+    const active = isActiveNow(s) ? '<span class="dot ok" style="margin-left:6px"></span><b>läuft</b>' : '';
+    const holIcon = s.skip_holidays ? ' · 🎉⛔' : '';
+    return `
+      <div style="display:flex;gap:12px;padding:12px;background:var(--panel2);border-radius:10px;border:1px solid var(--line);align-items:center;flex-wrap:wrap">
+        <div style="flex:1 1 200px">
+          <div><span class="chip ${cls}">${s.alias||'·'}</span> <b>${s.name}</b>${active}</div>
+          <div class="note" style="margin-top:4px">${days} · ${s.start}–${s.end} · ${power}${holIcon}</div>
+          ${s.notes ? `<div class="note" style="margin-top:4px;font-style:italic">${s.notes}</div>` : ''}
+        </div>
+        <div class="row" style="flex:0 0 auto">
+          <button class="btn small" onclick="schedToggle(${i}, ${!s.active})">${s.active?'⏸ Aus':'▶ Ein'}</button>
+          <button class="btn small" onclick="schedDelete(${i})">🗑</button>
+        </div>
+      </div>`;
+  }).join('') : '<div class="note">Keine Schedules definiert.</div>';
+}
+
+async function loadSchedules(){
+  try{
+    const d = await api('/api/schedules');
+    renderSchedules(d);
+  }catch(e){ console.error(e); }
+}
+
+async function schedDelete(i){
+  if(!confirm('Schedule wirklich löschen?')) return;
+  await fetch('/api/schedules/' + i, {method:'DELETE'});
+  await loadSchedules();
+}
+async function schedToggle(i, newActive){
+  const d = await api('/api/schedules');
+  d.schedules[i].active = newActive;
+  await api('/api/schedules', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({schedules:d.schedules})});
+  await loadSchedules();
+}
+async function schedAdd(){
+  const name = $('sn-name').value.trim();
+  if(!name){ alert('Name fehlt'); return; }
+  const days = [];
+  for(const cb of document.querySelectorAll('#sn-days input')){
+    if(cb.checked) days.push(parseInt(cb.value, 10));
+  }
+  if(days.length===0){ alert('Mindestens einen Wochentag wählen'); return; }
+  const newSched = {
+    name,
+    alias: name.split(' ')[0],
+    days,
+    start: $('sn-start').value || '13:30',
+    end: $('sn-end').value || '17:00',
+    max_amps: parseInt($('sn-amps').value, 10) || 16,
+    phases: parseInt($('sn-phases').value, 10) || 3,
+    skip_holidays: $('sn-hol').checked,
+    active: true
+  };
+  const cur = await api('/api/schedules');
+  const list = cur.schedules || [];
+  list.push(newSched);
+  await api('/api/schedules', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({schedules:list})});
+  $('sn-name').value=''; $('sn-amps').value='16';
+  await loadSchedules();
+}
+
+// Wochentage-Buttons rendern
+function renderDayButtons(){
+  const c = $('sn-days');
+  c.innerHTML = '';
+  for(let d=1; d<=7; d++){
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:var(--panel);padding:6px 10px;border-radius:8px;border:1px solid var(--line);cursor:pointer;user-select:none';
+    lbl.innerHTML = `<input type="checkbox" value="${d}" ${[2,3,5].includes(d)?'checked':''}/> ${DAY_NAMES[d]}`;
+    c.appendChild(lbl);
+  }
+}
+
+// ===== Heatpump =====
+async function loadHeatpump(){
+  try{
+    const s = await api('/api/heatpump/status');
+    const card = $('card-heatpump');
+    if(!s.enabled){ card.style.display='none'; return; }
+    card.style.display = '';
+    const lvl = s.last_sg_ready||2;
+    $('hp-state').innerHTML =
+      `<b>SG-Ready ${lvl}</b> – ${s.last_sg_ready_name||'Normal'}` +
+      (s.connected? ` · verbunden ${s.host}:${s.port}` : ' · <span style="color:var(--bad)">offline</span>');
+    try{
+      const a = await api('/api/heatpump/auto_decide');
+      $('hp-suggest').textContent = `🤖 Vorschlag: SG-Ready ${a.recommended} (${a.reason})`;
+    }catch(e){}
+  }catch(e){ /* nicht aktiv -> ignorieren */ }
+}
+async function hpSet(level){
+  if(!confirm(`SG-Ready Level ${level} setzen?`)) return;
+  await api('/api/heatpump/sg_ready', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({level})});
+  await loadHeatpump();
+}
+
+// CSV-Export Download
+function csvExport(){
+  const month = $('rfid-month').value || '';
+  const tag   = $('rfid-tag-filter').value || '';
+  const params = [];
+  if(month) params.push('month=' + encodeURIComponent(month));
+  if(tag)   params.push('tag=' + encodeURIComponent(tag));
+  if(params.length===0) params.push('all=1');
+  const url = '/api/rfid/sessions.csv?' + params.join('&');
+  // Download triggern
+  window.location.href = url;
+}
+
+// Tag-Filter aus Aliasen + bekannten Tags der Sessions befuellen
+function fillTagFilter(aliases, sessions){
+  const sel = $('rfid-tag-filter');
+  const known = new Map();
+  for(const [tag, name] of Object.entries(aliases||{})){
+    known.set(tag, name);
+  }
+  for(const s of (sessions||[])){
+    if(s.id_tag && !known.has(s.id_tag)) known.set(s.id_tag, '');
+  }
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">alle Chips</option>' +
+    [...known.entries()].map(([t,n])=>{
+      const label = n ? `${n} (${t.slice(0,6)}…)` : t;
+      return `<option value="${t}">${label}</option>`;
+    }).join('');
+  sel.value = cur;
+}
+
+// Monats-Wechsel + Tag-Filter
+document.addEventListener('DOMContentLoaded', ()=>{
+  $('rfid-month').addEventListener('change', loadRfid);
+  $('rfid-tag-filter').addEventListener('change', loadRfid);
+});
+
+// ===== Charts =====
+let chartPower;
+let currentRange = 'today';
+
+function makeCharts(){
+  const theme = chartTheme();
+  const axisColor = theme.axis;
+  const gridColor = theme.grid;
+  const commonDataset = {
+    type:'line',
+    tension:.42,
+    pointRadius:0,
+    pointHoverRadius:3,
+    borderWidth:0,
+    fill:true,
+    yAxisID:'watts',
+    spanGaps:true,
+    order:2,
+  };
+  const options = {
+    responsive:true,
+    maintainAspectRatio:false,
+    interaction:{ mode:'index', intersect:false },
+    plugins:{
+	      legend:{
+	        position:'top',
+	        align:'center',
+	        labels:{
+	          color:theme.text,
+          boxWidth:14,
+          boxHeight:14,
+          padding:24,
+          usePointStyle:false,
+          font:{ size:14, weight:'500' },
+        }
+      },
+	      tooltip:{
+	        backgroundColor:theme.tooltipBg,
+	        borderColor:theme.line,
+	        borderWidth:1,
+	        titleColor:theme.text,
+	        bodyColor:theme.tooltipText,
+        padding:10,
+        displayColors:true,
+        callbacks:{
+          label(ctx){
+            const v = ctx.parsed.y;
+            if(ctx.dataset.yAxisID === 'percent') return `${ctx.dataset.label}: ${Number(v).toFixed(1)} %`;
+            if(ctx.dataset.yAxisID === 'price') return `${ctx.dataset.label}: ${Number(v).toFixed(2)} ct/kWh`;
+            return `${ctx.dataset.label}: ${Math.round(v)} W`;
+          }
+        }
+      }
+    },
+    scales:{
+      x:{
+        ticks:{ color:axisColor, maxRotation:0, autoSkipPadding:24, font:{size:13} },
+        grid:{ display:false },
+	        border:{ color:theme.line },
+      },
+      watts:{
+        position:'left',
+        min:0,
+        suggestedMax:7500,
+        ticks:{ color:axisColor, font:{size:13}, stepSize:1500 },
+        title:{ display:true, text:'W', align:'start', color:axisColor, font:{size:15, weight:'500'} },
+        grid:{ color:gridColor },
+        border:{ display:false },
+      },
+      percent:{
+        position:'right',
+        min:0,
+        max:100,
+        ticks:{ color:axisColor, font:{size:13}, stepSize:20 },
+        title:{ display:true, text:'%', align:'start', color:axisColor, font:{size:15, weight:'500'} },
+        grid:{ display:false },
+        border:{ display:false },
+      },
+      price:{
+        position:'right',
+        min:0,
+        suggestedMax:60,
+        ticks:{ color:'#f5a524', font:{size:12}, callback:v => `${v}` },
+        title:{ display:true, text:'ct/kWh', align:'end', color:'#f5a524', font:{size:13, weight:'500'} },
+        grid:{ display:false },
+        border:{ display:false },
+        offset:true,
+      }
+    }
+  };
+
+  const ctxP = document.getElementById('chart-power').getContext('2d');
+  chartPower = new Chart(ctxP, {
+    type:'line',
+    data:{ labels:[], datasets:[
+      { ...commonDataset, label:'Leistung ins Netz', data:[], backgroundColor:'rgba(150,150,150,.90)', borderColor:'#9b9b9b', order:4 },
+      { ...commonDataset, label:'Leistung zur Batterie', data:[], backgroundColor:'rgba(145,199,126,.88)', borderColor:'#91c77e', order:5 },
+      { ...commonDataset, label:'Leistung Wattpilot', data:[], backgroundColor:'rgba(162,112,174,.88)', borderColor:'#a270ae', order:6 },
+      { ...commonDataset, label:'Direkt verbraucht', data:[], backgroundColor:'rgba(248,216,101,.88)', borderColor:'#f8d865', order:7 },
+      { type:'line', label:'Verbrauch', data:[], borderColor:'#78afd0', backgroundColor:'#78afd0', yAxisID:'watts', cubicInterpolationMode:'monotone', tension:.45, borderWidth:2, pointRadius:0, fill:false, spanGaps:true, order:1 },
+      { type:'line', label:'PV-Erzeugung', data:[], borderColor:'#facc15', backgroundColor:'#facc15', yAxisID:'watts', cubicInterpolationMode:'monotone', tension:.45, borderWidth:2, pointRadius:0, fill:false, spanGaps:true, borderDash:[2,4], order:1 },
+      { type:'line', label:'Ladezustand', data:[], borderColor:'#49a63b', backgroundColor:'#49a63b', yAxisID:'percent', cubicInterpolationMode:'monotone', tension:.45, borderWidth:2, pointRadius:0, fill:false, spanGaps:true, order:0 },
+      { type:'line', label:'Batteriestatus', data:[], borderColor:'#49a63b', backgroundColor:'#a7d994', yAxisID:'percent', showLine:false, pointRadius:4, pointHoverRadius:5, pointStyle:'circle', order:0 },
+      { type:'line', label:'Verbrauch erwartet', data:[], borderColor:'#78afd0', backgroundColor:'#78afd0', yAxisID:'watts', cubicInterpolationMode:'monotone', tension:.45, borderWidth:2, pointRadius:0, fill:false, spanGaps:true, borderDash:[7,5], order:1 },
+      { type:'line', label:'Ladezustand erwartet', data:[], borderColor:'#49a63b', backgroundColor:'#49a63b', yAxisID:'percent', cubicInterpolationMode:'monotone', tension:.45, borderWidth:2, pointRadius:0, fill:false, spanGaps:true, borderDash:[7,5], order:0 },
+      { type:'line', label:'Tibber Preis', data:[], borderColor:'#f5a524', backgroundColor:'#f5a524', yAxisID:'price', cubicInterpolationMode:'monotone', tension:.35, stepped:false, borderWidth:2, pointRadius:0, fill:false, spanGaps:true, borderDash:[5,4], order:0 },
+    ]},
+    options
+  });
+}
+
+function fmtLabel(iso, range){
+  const d = new Date(iso.replace(' ','T')+'Z'); // SQLite-Format -> UTC
+  if(range==='today') return d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    if(range==='week')  return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+  return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+}
+
+function chartDateLabel(range){
+  const d = new Date();
+  if(range === 'today'){
+    return d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'numeric'});
+  }
+  if(range === 'year') return d.getFullYear();
+  if(range === 'total') return 'Gesamt';
+  return d.toLocaleDateString('de-DE', {month:'long', year:'numeric'});
+}
+
+async function loadChart(range){
+  currentRange = range;
+  for(const id of ['r-today','r-week','r-month','r-total']){
+    const el = $(id);
+    if(el) el.classList.toggle('active', el.dataset.range===range);
+  }
+  try{
+    const apiRange = range;
+    const d = await api('/api/chart?range='+apiRange);
+    if(d.error){ $('chart-info').textContent = 'Fehler: '+d.error; return; }
+    const labels = d.labels.map(t => fmtLabel(t, apiRange));
+    chartPower.data.labels = labels;
+    chartPower.data.datasets[0].data = d.to_grid || [];
+    chartPower.data.datasets[1].data = d.to_battery || [];
+    chartPower.data.datasets[2].data = d.wattpilot || [];
+    chartPower.data.datasets[3].data = d.direct_consumed || [];
+    chartPower.data.datasets[4].data = d.load || [];
+    chartPower.data.datasets[5].data = d.pv || [];
+    chartPower.data.datasets[6].data = d.soc || [];
+    chartPower.data.datasets[7].data = (d.soc || []).map((v, i) => i % 12 === 0 ? v : null);
+    chartPower.data.datasets[8].data = d.expected_load || [];
+    chartPower.data.datasets[9].data = d.expected_soc || [];
+    chartPower.data.datasets[10].data = d.price || [];
+    chartPower.update('none');
+
+    $('chart-date-label').textContent = chartDateLabel(range);
+    const actual = d.actual_count ?? d.count;
+    $('chart-info').textContent = `${actual} echte Messpunkte · ${d.count} Punkte auf der Tagesachse · Aufloesung ${d.bucket_min} min · gestrichelt = erwartet`;
+  }catch(e){
+    console.error(e);
+    $('chart-info').textContent = 'Chart-Fehler: '+e.message;
+  }
+}
+
+// Range-Buttons
+for(const b of document.querySelectorAll('[data-range]')){
+  b.addEventListener('click', ()=> loadChart(b.dataset.range));
+}
+
+// Init
+initTheme();
+renderDayButtons();
+loadProgramState();
+if($('chart-power')){
+  makeCharts();
+  loadChart('today');
+}
+loadAll();
+refreshForceChargeStatus();
+loadAutomationStatus();
+loadRfid();
+loadPlan();
+loadSchedules();
+loadHeatpump();
+setInterval(loadAll, 10000);
+setInterval(refreshForceChargeStatus, 10000);
+setInterval(loadAutomationStatus, 30000);
+if($('chart-power')) setInterval(()=> loadChart(currentRange), 60000);   // Chart 1x/min
+setInterval(loadRfid, 30000);                        // RFID 2x/min
+setInterval(loadPlan, 60000);                        // Plan 1x/min
+setInterval(loadSchedules, 30000);                   // Schedules 2x/min
+setInterval(loadHeatpump, 60000);                    // Heatpump 1x/min
+</script>
+</body>
+</html>

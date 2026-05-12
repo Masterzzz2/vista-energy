@@ -1,0 +1,38 @@
+# Vista-Energy — Dependencies
+# Python 3.10+ required
+
+# Web Framework
+flask>=3.0.0
+flask-login>=0.6.3
+flask-cors>=5.0.0
+
+# Scheduling
+apscheduler>=3.10.0
+
+# API & Network
+requests>=2.31.0
+websocket-client>=1.6.0
+
+# Configuration
+python-dotenv>=1.0.0
+pyyaml>=6.0
+
+# Data Processing
+pandas>=2.1.0
+numpy>=1.26.0
+
+# Database
+sqlalchemy>=2.0.0
+
+# Modbus (Batterie/Wechselrichter-Steuerung)
+pymodbus>=3.5.0
+
+# Utils
+python-dateutil>=2.8.0
+pytz>=2024.1
+
+# Optional: Feiertage (Bayern)
+holidays>=0.40
+
+# Development
+pytest>=7.4.0

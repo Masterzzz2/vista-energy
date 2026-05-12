@@ -1,0 +1,318 @@
+"""
+EVCC/Fronius Service
+Controls Fronius Symo GEN24 via EVCC API OR direct Solar API
+
+Note: The Wattpilot (192.168.1.80) has the Fronius Solar API built-in.
+We can use http://192.168.1.80/solar_api/v1/GetPowerFlowRealtimeData.fcgi
+to read PV, battery, grid, and consumption data directly.
+"""
+
+import os
+import json
+import logging
+from typing import Dict
+from datetime import datetime
+
+import requests
+
+logger = logging.getLogger(__name__)
+
+
+class EVCCService:
+    """
+    Handles communication with Fronius Symo GEN24.
+
+    Two modes:
+    1. EVCC API (port 7070) - if EVCC is running
+    2. Direct Fronius Solar API (port 80) - via Wattpilot
+
+    We prefer direct Solar API as it's always available on the Wattpilot.
+    """
+
+    FRONIUS_API = "http://192.168.1.80/solar_api/v1/GetPowerFlowRealtimeData.fcgi"
+
+    def __init__(self, api_url: str = None, api_token: str = None):
+        self.api_url = api_url or os.getenv('EVCC_API_URL')
+        self.api_token = api_token or os.getenv('EVCC_API_TOKEN', '')
+        self.timeout = 10
+
+        # Check which API to use
+        self.use_fronius_direct = True  # Prefer direct Fronius API
+
+    def _read_ocpp_status(self) -> Dict:
+        """Read Wattpilot status from the local OCPP control websocket."""
+        try:
+            import websocket
+            ws = websocket.WebSocket()
+            ws.connect('ws://localhost:8889', timeout=3)
+            ws.send(json.dumps({'cmd': 'status'}))
+            response = ws.recv()
+            ws.close()
+            return json.loads(response)
+        except Exception as e:
+            logger.debug(f"OCPP status unavailable: {e}")
+            return {}
+
+    def _request(self, method: str, path: str, data: dict = None) -> dict:
+        """Make request to API."""
+        try:
+            if self.use_fronius_direct:
+                url = f"http://192.168.1.80{path}"
+            else:
+                url = f"{self.api_url}{path}"
+
+            headers = {}
+            if self.api_token:
+                headers['Authorization'] = f"Bearer {self.api_token}"
+
+            if method == 'GET':
+                response = requests.get(url, headers=headers, timeout=self.timeout)
+            elif method == 'POST':
+                response = requests.post(url, json=data, headers=headers, timeout=self.timeout)
+            else:
+                return {'error': 'Unsupported method'}
+
+            response.raise_for_status()
+            return response.json()
+
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"API not reachable")
+            return {'error': 'Connection refused'}
+        except Exception as e:
+            logger.error(f"API error: {e}")
+            return {'error': str(e)}
+
+    def get_current_state(self) -> Dict:
+        """
+        Get current system state from Fronius Solar API.
+
+        Uses: http://192.168.1.80/solar_api/v1/GetPowerFlowRealtimeData.fcgi
+
+        Returns dict with:
+        - house_consumption_w: Current house load in Watt
+        - pv_production_w: Current PV production in Watt
+        - battery_soc: Battery state of charge (0.0 - 1.0)
+        - battery_charge_w: Battery charge/discharge power in Watt
+        - grid_power_w: Grid import/export in Watt
+        - wattpilot_power_w: EV charging power in Watt
+        """
+        result = self._request('GET', '/solar_api/v1/GetPowerFlowRealtimeData.fcgi?Scope=System')
+
+        if 'error' in result:
+            logger.warning("Fronius Solar API not available, using simulated data")
+            return self._get_simulated_state()
+
+        try:
+            body = result.get('Body', {})
+            data = body.get('Data', {})
+            site = data.get('Site', {})
+
+            # Parse common data
+            pv_power = site.get('P_PV', 0) or 0
+            grid_power = site.get('P_Grid', 0) or 0
+            load_power = site.get('P_Load', 0) or 0
+            battery_power = site.get('P_Akku', 0) or 0  # Correct field name is P_Akku
+            ocpp_status = self._read_ocpp_status()
+            wattpilot_power = float(ocpp_status.get('meter_w') or ocpp_status.get('power_w') or 0)
+
+            # Get Battery SOC from Device scope
+            battery_soc = 0
+            device_result = self._request('GET', '/solar_api/v1/GetPowerFlowRealtimeData.fcgi?Scope=Device')
+            try:
+                inverters = device_result.get('Body', {}).get('Data', {}).get('Inverters', {})
+                if '1' in inverters:
+                    battery_soc = (inverters['1'].get('SOC', 0) or 0) / 100  # SOC is 0-100
+            except:
+                pass
+
+            return {
+                'house_consumption': abs(load_power),
+                'pv_production': pv_power,
+                'battery_soc': battery_soc,
+                'battery_charge': battery_power,
+                'grid_power': grid_power,
+                'wattpilot_power': abs(wattpilot_power),
+                'timestamp': datetime.now()
+            }
+
+        except (KeyError, IndexError, TypeError) as e:
+            logger.error(f"Failed to parse Fronius response: {e}")
+            return self._get_simulated_state()
+
+    def get_battery_state(self) -> Dict:
+        """Get battery-specific data (BYD HVS 7.68 kWh)."""
+        state = self.get_current_state()
+
+        return {
+            'soc': state.get('battery_soc', 0),
+            'power_w': state.get('battery_charge', 0),
+            'capacity_kwh': 7.68,
+            'usable_kwh': 7.0
+        }
+
+    def get_pv_state(self) -> Dict:
+        """Get PV production data."""
+        state = self.get_current_state()
+
+        return {
+            'power_w': state.get('pv_production', 0),
+            'today_kwh': 0,  # Would need separate API call for daily totals
+            'timestamp': datetime.now()
+        }
+
+    def get_grid_state(self) -> Dict:
+        """Get grid import/export data."""
+        state = self.get_current_state()
+
+        return {
+            'power_w': state.get('grid_power', 0),
+            'import_kwh_today': 0,  # Would need meter API
+            'export_kwh_today': 0,
+        }
+    
+    def set_charge_mode(self, action: str, target_soc: float = 0.8, max_power_w: int = 22000):
+        """
+        Control EV charging via Wattpilot OCPP.
+
+        action: 'start', 'stop', 'auto'
+        target_soc: 0.0 - 1.0 (not directly controllable via Fronius API)
+        max_power_w: max charging power in Watt (22kW = 3-phase)
+        """
+        logger.info(f"Charge mode requested: {action}, target_soc={target_soc}, max_power={max_power_w}W")
+
+        if action == 'start':
+            return self.start_charging()
+        elif action == 'stop':
+            return self.stop_charging()
+        else:
+            return {'status': 'ok', 'action': action}
+
+    def start_charging(self) -> Dict:
+        """Send RemoteStart to Wattpilot via OCPP websocket."""
+        try:
+            import websocket
+            ws = websocket.WebSocket()
+            ws.connect('ws://localhost:8889', timeout=5)
+            ws.send(json.dumps({'cmd': 'start'}))
+            response = ws.recv()
+            ws.close()
+            logger.info(f"Start charging response: {response}")
+            return {'status': 'ok', 'action': 'start', 'response': json.loads(response)}
+        except Exception as e:
+            logger.error(f"Failed to start charging: {e}")
+            return {'status': 'error', 'action': 'start', 'error': str(e)}
+
+    def stop_charging(self) -> Dict:
+        """Send RemoteStop to Wattpilot via OCPP websocket."""
+        try:
+            import websocket
+            ws = websocket.WebSocket()
+            ws.connect('ws://localhost:8889', timeout=5)
+            ws.send(json.dumps({'cmd': 'stop'}))
+            response = ws.recv()
+            ws.close()
+            logger.info(f"Stop charging response: {response}")
+            return {'status': 'ok', 'action': 'stop', 'response': json.loads(response)}
+        except Exception as e:
+            logger.error(f"Failed to stop charging: {e}")
+            return {'status': 'error', 'action': 'stop', 'error': str(e)}
+
+    def get_wattpilot_status(self) -> Dict:
+        """Get Wattpilot status via OCPP websocket."""
+        try:
+            data = self._read_ocpp_status()
+            connector_status = data.get('connector_status') or data.get('status') or 'Available'
+            return {
+                'power_w': data.get('meter_w') or data.get('power_w') or 0,
+                'status': connector_status,
+                'energy_kwh_today': data.get('energy_kwh', 0),
+                'connected': bool(data.get('connected')),
+                'timestamp': datetime.now()
+            }
+        except Exception as e:
+            logger.error(f"Failed to get Wattpilot status: {e}")
+            # Fallback to Fronius-based status
+            state = self.get_current_state()
+            wattpilot_power = state.get('wattpilot_power', 0)
+            return {
+                'power_w': wattpilot_power,
+                'status': 'Charging' if wattpilot_power > 500 else 'Available',
+                'energy_kwh_today': 0,
+                'timestamp': datetime.now()
+            }
+
+    def set_battery_mode(self, mode: str, target_soc: float = None):
+        """
+        Control battery behavior.
+
+        Note: Battery control is typically done through the inverter settings,
+        not directly via API. This logs the intended action.
+
+        mode: 'normal', 'hold', 'discharge', 'charge'
+        target_soc: optional SOC target for charge mode
+        """
+        logger.info(f"Battery mode requested: {mode}, target_soc={target_soc}")
+        return {'status': 'ok', 'mode': mode, 'logged': True}
+
+    def apply_recommendation(self, recommendation: Dict):
+        """
+        Apply optimization recommendation to the system.
+        Logs the recommendation for now - actual implementation
+        depends on available API endpoints.
+        """
+        logger.info(f"Optimization recommendation: {recommendation}")
+
+        if 'battery_mode' in recommendation:
+            logger.info(f"  Battery mode: {recommendation['battery_mode']}")
+
+        if 'charge_action' in recommendation:
+            logger.info(f"  Charge action: {recommendation['charge_action']}")
+
+        return {'status': 'applied', 'logged': True}
+
+    def _get_simulated_state(self) -> Dict:
+        """
+        Return simulated state for testing when Fronius is not available.
+        Based on typical values for Werner Gollar's system.
+        """
+        now = datetime.now()
+        hour = now.hour
+
+        # Simulate PV production (peaks at midday, Eresing Germany)
+        if 6 <= hour <= 20:
+            # Typical day profile
+            if hour < 8:
+                pv_factor = (hour - 6) / 2
+            elif hour > 16:
+                pv_factor = (20 - hour) / 4
+            else:
+                pv_factor = 1.0
+            pv_power = int(6000 * pv_factor * 0.85)  # 6kWp system with some variance
+        else:
+            pv_power = 0
+
+        # Simulate house consumption
+        if 6 <= hour <= 9:
+            consumption = 1200  # Morning peak
+        elif 11 <= hour <= 14:
+            consumption = 600   # Midday low
+        elif 17 <= hour <= 22:
+            consumption = 1500  # Evening peak
+        else:
+            consumption = 200   # Night low
+
+        # Battery SOC (simulate gradual discharge overnight)
+        if hour < 6:
+            battery_soc = 0.75 - (6 - hour) * 0.02  # Drops overnight
+        else:
+            battery_soc = 0.65  # Typical daytime
+
+        return {
+            'house_consumption': consumption,
+            'pv_production': pv_power,
+            'battery_soc': battery_soc,
+            'battery_charge': 0,
+            'grid_power': consumption - pv_power,  # Net grid draw
+            'wattpilot_power': 0,
+            'timestamp': now
+        }

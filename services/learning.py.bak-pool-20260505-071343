@@ -1,0 +1,246 @@
+"""
+Learning Service
+Builds and maintains consumption profiles from historical data
+"""
+
+import logging
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, Optional
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from models.database import EnergyReading, db
+
+logger = logging.getLogger(__name__)
+
+
+class LearningService:
+    """
+    Manages the learning phase and profile building.
+    After 7 days of data, provides consumption profiles for optimization.
+    """
+    
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self.min_learning_days = 7
+        self.engine = create_engine(f'sqlite:///{db_path}')
+        self.Session = sessionmaker(bind=self.engine)
+    
+    def get_session(self):
+        """Get a database session."""
+        return self.Session()
+    
+    def get_learning_days(self) -> int:
+        """Return how many days of data we have."""
+        session = self.get_session()
+        try:
+            first_reading = session.query(EnergyReading).order_by(
+                EnergyReading.timestamp.asc()
+            ).first()
+            
+            if not first_reading:
+                return 0
+            
+            age = datetime.now() - first_reading.timestamp
+            return min(int(age.days), 7)
+        finally:
+            session.close()
+
+    def get_reading_count(self) -> int:
+        """Return total number of stored readings."""
+        session = self.get_session()
+        try:
+            return session.query(EnergyReading).count()
+        finally:
+            session.close()
+    
+    def is_learning_complete(self) -> bool:
+        """Return True if we have 7+ days of data."""
+        return self.get_learning_days() >= self.min_learning_days
+    
+    def get_daily_profile(self, day_offset: int = 0) -> Optional[Dict]:
+        """
+        Get consumption profile for a specific day.
+        
+        Args:
+            day_offset: 0 = today, -1 = yesterday, etc.
+        
+        Returns:
+            Dict with hourly data or None if not enough data
+        """
+        session = self.get_session()
+        try:
+            # Calculate date range
+            end_date = datetime.now() + timedelta(days=day_offset)
+            start_date = end_date - timedelta(days=7)
+            
+            readings = session.query(EnergyReading).filter(
+                EnergyReading.timestamp >= start_date,
+                EnergyReading.timestamp < end_date
+            ).all()
+            
+            # Build hourly profile
+            default_profile = self._get_default_profile()
+            hourly_data = {h: {'consumption': [], 'wattpilot': []} for h in range(24)}
+            
+            for r in readings:
+                hour = r.timestamp.hour
+                hourly_data[hour]['consumption'].append(abs(r.house_consumption_w or 0))
+                hourly_data[hour]['wattpilot'].append(abs(r.wattpilot_power_w or 0))
+            
+            profile = {}
+            for hour, data in hourly_data.items():
+                consumptions = data['consumption']
+                wattpilot = data['wattpilot']
+                default_entry = default_profile[hour]
+                default_consumption = default_entry['avg_consumption_w']
+
+                if consumptions:
+                    learned_consumption = sum(consumptions) / len(consumptions)
+                    # 12 samples = roughly three hours of 15-min readings, enough to
+                    # start trusting the hour while still blending toward default.
+                    confidence = min(1.0, len(consumptions) / 12.0)
+                    avg_consumption = (
+                        default_consumption * (1.0 - confidence)
+                        + learned_consumption * confidence
+                    )
+                else:
+                    learned_consumption = None
+                    confidence = 0.0
+                    avg_consumption = default_consumption
+                
+                # EV charging probability
+                ev_count = sum(1 for w in wattpilot if w > 500) if wattpilot else 0
+                learned_ev_probability = ev_count / len(wattpilot) if wattpilot else None
+                ev_probability = (
+                    default_entry['typical_ev_charging'] if learned_ev_probability is None
+                    else default_entry['typical_ev_charging'] * (1.0 - confidence) + learned_ev_probability * confidence
+                )
+                
+                # Standard deviation
+                std = self._calculate_std(consumptions) if len(consumptions) > 1 else default_entry['std_consumption_w']
+                
+                profile[hour] = {
+                    'avg_consumption_w': avg_consumption,
+                    'learned_consumption_w': learned_consumption,
+                    'default_consumption_w': default_consumption,
+                    'std_consumption_w': std,
+                    'typical_ev_charging': ev_probability,
+                    'sample_count': len(consumptions),
+                    'confidence': round(confidence, 3),
+                    'source': 'learned_blend' if consumptions else 'default'
+                }
+            
+            return profile
+            
+        finally:
+            session.close()
+    
+    def get_weekly_report(self) -> Dict:
+        """Generate a weekly summary report."""
+        days = self.get_learning_days()
+        
+        return {
+            'learning_complete': self.is_learning_complete(),
+            'profile_active': self.get_reading_count() > 0,
+            'learning_days': days,
+            'days_remaining': max(0, self.min_learning_days - days),
+            'reading_count': self.get_reading_count(),
+            'message': self._get_learning_message(days)
+        }
+    
+    def _get_learning_message(self, days: int) -> str:
+        """Get human-readable learning status message."""
+        if days == 0:
+            return "No data collected yet. Learning will begin on first data point."
+        elif days < 7:
+            return f"Learning active: {days}/7 days. Existing readings are already blended into the profile."
+        else:
+            return f"Learning complete. Profile based on {days} days of data."
+    
+    def _calculate_std(self, values: list) -> float:
+        """Calculate standard deviation."""
+        if len(values) < 2:
+            return 0
+        
+        avg = sum(values) / len(values)
+        variance = sum((v - avg) ** 2 for v in values) / len(values)
+        return variance ** 0.5
+    
+    def _get_default_profile(self) -> Dict:
+        """Return default profile when not enough data."""
+        profile = {}
+        for hour in range(24):
+            # Default assumptions for a typical household
+            if 6 <= hour <= 9:
+                consumption = 800  # Morning peak
+            elif 17 <= hour <= 22:
+                consumption = 1000  # Evening peak
+            elif 0 <= hour <= 5:
+                consumption = 200  # Night low
+            else:
+                consumption = 400  # Daytime average
+            
+            profile[hour] = {
+                'avg_consumption_w': consumption,
+                'std_consumption_w': 200,
+                'typical_ev_charging': 0.1 if 22 <= hour or hour <= 6 else 0.3,
+                'sample_count': 0
+            }
+        
+        return profile
+    
+    def predict_tomorrow_consumption(self) -> Dict:
+        """
+        Predict tomorrow's consumption pattern based on learned profile.
+        Returns hourly predictions in Watt.
+        """
+        profile = self.get_daily_profile()
+        if not profile:
+            profile = self._get_default_profile()
+        
+        predictions = []
+        for hour in range(24):
+            if hour in profile:
+                pred = profile[hour]['avg_consumption_w']
+            else:
+                pred = 500
+            
+            predictions.append({
+                'hour': hour,
+                'predicted_consumption_w': pred,
+                'confidence': profile.get(hour, {}).get('confidence', 0)
+            })
+        
+        return {'predictions': predictions}
+    
+    def get_optimal_charge_windows(self, hours_needed: int = 4) -> list:
+        """
+        Get the best hours to charge based on learned patterns.
+        
+        Returns list of hours (0-23) when charging is most efficient.
+        """
+        profile = self.get_daily_profile()
+        if not profile:
+            return list(range(0, 4))  # Default: night hours
+        
+        # Score each hour
+        hour_scores = []
+        for hour in range(24):
+            if hour in profile:
+                ev_prob = profile[hour].get('typical_ev_charging', 0.1)
+                consumption = profile[hour].get('avg_consumption_w', 500)
+                
+                # Lower consumption + lower EV probability = better for charging
+                score = (consumption / 1000) * (1 - ev_prob)
+            else:
+                score = 0.5
+            
+            hour_scores.append((hour, score))
+        
+        # Sort by score (ascending = best for charging)
+        hour_scores.sort(key=lambda x: x[1])
+        
+        return [h[0] for h in hour_scores[:hours_needed]]

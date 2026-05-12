@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Energy Optimizer - Dashboard{% endblock %}
+
+{% block content %}
+<div class="nav">
+    <a href="/" class="active">Dashboard</a>
+    <a href="/charts">Charts</a>
+    <a href="/history">Historie</a>
+    <a href="/settings">Einstellungen</a>
+    <a href="/logout">Logout</a>
+</div>
+
+<!-- Modus Auswahl -->
+<div class="card">
+    <h2>🎛️ Betriebsmodus</h2>
+    <div class="mode-selector">
+        <button class="mode-btn manuell {% if mode == 'manual' %}active{% endif %}" 
+                onclick="setMode('manual')">
+            🔧 Manuell
+        </button>
+        <button class="mode-btn automatisch {% if mode == 'automatic' %}active{% endif %}" 
+                onclick="setMode('automatic')">
+            ⚡ Automatisch
+        </button>
+        <button class="mode-btn ki {% if mode == 'ai' %}active{% endif %}" 
+                onclick="setMode('ai')">
+            🤖 KI-Unterstützt
+        </button>
+    </div>
+    
+    {% if mode == 'ai' %}
+    <div class="form-group">
+        <small>🤖 KI-Modus: Lerndaten seit {{ learning_days|default(0) }} Tagen | Benötigt: 7 Tage</small>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Aktueller Status -->
+<div class="card" id="status-container">
+    <h2>📊 Aktueller Status</h2>
+    <div class="grid" hx-get="/partial/status" hx-trigger="load, every 30s">
+        <div class="stat">
+            <div class="stat-value">{{ status.battery_soc|default(0) }}%</div>
+            <div class="stat-label">🔋 Batterie SoC</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ status.pv_power|default(0) }} W</div>
+            <div class="stat-label">☀️ PV Leistung</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ status.grid_power|default(0) }} W</div>
+            <div class="stat-label">🔌 Netz</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ status.tibber_price|default(0) }} ct</div>
+            <div class="stat-label">💰 Tibber Preis</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ status.wattpilot_power|default(0) }} W</div>
+            <div class="stat-label">🚗 Wattpilot</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ status.house_power|default(0) }} W</div>
+            <div class="stat-label">🏠 Hausverbrauch</div>
+        </div>
+    </div>
+</div>
+
+<!-- Manuelle Steuerung (wird nur im Manuell-Modus angezeigt) -->
+<div class="card" id="manual-controls" style="display: {% if mode == 'manual' %}block{% else %}none{% endif %}">
+    <h2>🔧 Manuelle Steuerung</h2>
+    <form id="manual-form">
+        <div class="grid">
+            <div class="form-group">
+                <label>Batterie SoC Ziel (%)</label>
+                <input type="number" name="battery_soc_target" min="0" max="100" value="100">
+            </div>
+            <div class="form-group">
+                <label>Ladeleistung (W)</label>
+                <input type="number" name="charge_power_w" min="0" max="5000" value="3000">
+            </div>
+            <div class="form-group">
+                <label>Entlade-Sperre</label>
+                <select name="discharge_lock">
+                    <option value="0">Erlaubt</option>
+                    <option value="1">Gesperrt</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-warning">Einstellungen anwenden</button>
+    </form>
+</div>
+
+<!-- Charts -->
+<div class="card">
+    <h2>📈 Energieverlauf (48h)</h2>
+    <div class="chart-container">
+        <canvas id="mainChart"></canvas>
+    </div>
+</div>
+
+<!-- Tagesbericht -->
+<div class="card">
+    <h2>📋 Tagesbericht</h2>
+    <div id="report-container">
+        <button class="btn btn-primary" onclick="loadReport()">Bericht laden</button>
+    </div>
+</div>
+
+<!-- Letzte Optimierung -->
+<div class="card">
+    <h2>⚡ Letzte Optimierung</h2>
+    <div id="optimization-container">
+        <button class="btn btn-success" onclick="runOptimization()">Optimierung jetzt ausführen</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentMode = '{{ mode }}';
+    
+    function setMode(mode) {
+        fetch('/api/mode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: mode })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        });
+    }
+    
+    function loadReport() {
+        fetch('/api/report')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('report-container').innerHTML = 
+                    '<pre>' + data.text + '</pre>';
+            });
+    }
+    
+    function runOptimization() {
+        document.getElementById('optimization-container').innerHTML = '<span class="loading"></span> Optimierung läuft...';
+        fetch('/api/optimize', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                let html = '<ul>';
+                data.actions?.forEach(a => {
+                    html += '<li><strong>' + a.target + '</strong>: ' + a.action + ' - ' + a.reason + '</li>';
+                });
+                html += '</ul>';
+                html += '<button class="btn btn-primary" onclick="runOptimization()">Erneut ausführen</button>';
+                document.getElementById('optimization-container').innerHTML = html;
+            });
+    }
+    
+    // Chart laden
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        
+        Promise.all([
+            fetch('/api/chart/production').then(r => r.json()),
+            fetch('/api/chart/consumption').then(r => r.json()),
+            fetch('/api/chart/battery').then(r => r.json())
+        ]).then(([pv, consumption, battery]) => {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: pv.map(d => d.timestamp?.substring(11, 16) || ''),
+                    datasets: [
+                        {
+                            label: 'PV (W)',
+                            data: pv.map(d => d.power_w || 0),
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Verbrauch (W)',
+                            data: consumption.map(d => d.power_w || 0),
+                            borderColor: '#ef4444',
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Batterie SoC (%)',
+                            data: battery.map(d => d.soc_percent || 0),
+                            borderColor: '#22c55e',
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: { legend: { position: 'top' } }
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

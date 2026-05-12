@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vista-Energy — Einrichtung</title>
+<style>
+:root{
+  --bg:#0e1116;--panel:#171c24;--panel2:#1f2630;--line:#2a3340;
+  --txt:#e7ecf3;--muted:#9aa6b2;--accent:#3ddc84;--accent2:#2bb86f;
+  --bad:#ef4444;--warn:#f59e0b;--blue:#3b82f6;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100vh;background:var(--bg);color:var(--txt);
+  font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+
+/* Layout */
+.wizard{max-width:520px;margin:0 auto;padding:20px 16px 40px}
+.logo{text-align:center;padding:30px 0 10px;font-size:28px;font-weight:800;letter-spacing:.5px}
+.logo span{color:var(--accent)}
+
+/* Progress bar */
+.progress{display:flex;gap:6px;margin:20px 0 30px}
+.progress .dot{flex:1;height:4px;border-radius:3px;background:var(--line);transition:background .3s}
+.progress .dot.done{background:var(--accent)}
+.progress .dot.active{background:var(--accent);box-shadow:0 0 8px rgba(61,220,132,.4)}
+
+/* Step cards */
+.step{display:none;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:28px 24px;animation:fadeIn .3s ease}
+.step.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.step h2{margin:0 0 6px;font-size:20px;display:flex;align-items:center;gap:10px}
+.step .desc{color:var(--muted);font-size:13px;margin-bottom:20px;line-height:1.6}
+
+/* Form elements */
+label{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;
+  margin:14px 0 6px}
+input[type=text],input[type=password],input[type=number],select{
+  width:100%;padding:12px 14px;background:var(--panel2);color:var(--txt);
+  border:1px solid var(--line);border-radius:10px;font-size:15px;outline:none;transition:border .15s}
+input:focus,select:focus{border-color:var(--accent)}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239aa6b2' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.row{display:flex;gap:12px}
+.row>*{flex:1}
+
+/* Buttons */
+.actions{display:flex;gap:12px;margin-top:24px}
+.btn{flex:1;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;
+  cursor:pointer;letter-spacing:.3px;transition:transform .1s,opacity .15s}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#06140b}
+.btn-secondary{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+.btn-skip{background:transparent;color:var(--muted);font-weight:400;font-size:13px;
+  text-decoration:underline;border:none;cursor:pointer;padding:8px;margin-top:8px;width:100%;text-align:center}
+
+/* Status messages */
+.msg{padding:10px 14px;border-radius:10px;font-size:13px;margin-top:12px;display:none}
+.msg.ok{display:block;background:rgba(61,220,132,.1);border:1px solid var(--accent);color:var(--accent)}
+.msg.err{display:block;background:rgba(239,68,68,.1);border:1px solid var(--bad);color:var(--bad)}
+.msg.warn{display:block;background:rgba(245,158,11,.1);border:1px solid var(--warn);color:var(--warn)}
+
+/* Hardware cards */
+.hw-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.hw-card{padding:14px;background:var(--panel2);border:2px solid var(--line);border-radius:12px;
+  cursor:pointer;transition:border-color .2s,transform .1s;text-align:center}
+.hw-card:hover{border-color:var(--muted)}
+.hw-card.selected{border-color:var(--accent);background:rgba(61,220,132,.06)}
+.hw-card .icon{font-size:28px;margin-bottom:4px}
+.hw-card .name{font-size:13px;font-weight:600}
+.hw-card .sub{font-size:11px;color:var(--muted)}
+
+/* Spinner */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--line);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Checkmark animation */
+.check-circle{width:80px;height:80px;margin:20px auto;border-radius:50%;background:rgba(61,220,132,.12);
+  display:flex;align-items:center;justify-content:center;font-size:40px;animation:popIn .4s ease}
+@keyframes popIn{from{transform:scale(0)}60%{transform:scale(1.15)}to{transform:scale(1)}}
+
+.license-toggle{display:flex;gap:8px;margin:12px 0}
+.license-toggle button{flex:1;padding:10px;border-radius:10px;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .2s;border:2px solid var(--line);background:var(--panel2);color:var(--muted)}
+.license-toggle button.active{border-color:var(--accent);background:rgba(61,220,132,.08);color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wizard">
+
+  <div class="logo">⚡ Vista-<span>Energy</span></div>
+
+  <!-- Progress -->
+  <div class="progress" id="progress">
+    <div class="dot active"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+  </div>
+
+  <!-- ========== STEP 0: Willkommen ========== -->
+  <div class="step active" id="step-0">
+    <h2>👋 Willkommen!</h2>
+    <div class="desc">
+      Vista-Energy optimiert deine PV-Anlage, Batterie und Wallbox
+      automatisch — basierend auf Strompreisen, Wetterprognosen
+      und deinem Verbrauchsprofil.<br><br>
+      In wenigen Schritten richten wir alles ein. Du kannst jeden
+      Schritt auch <b>ueberspringen</b> und spaeter im Dashboard nachholen.
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="goStep(1)">Los geht's →</button>
+    </div>
+  </div>
+
+  <!-- ========== STEP 1: Account ========== -->
+  <div class="step" id="step-1">
+    <h2>🔐 Dein Zugang</h2>
+    <div class="desc">Lege einen Benutzernamen und ein Passwort fuer das Dashboard fest.</div>
+
+    <label>Benutzername</label>
+    <input type="text" id="s1-user" value="admin" autocomplete="off">
+
+    <label>Passwort</label>
+    <input type="password" id="s1-pass" placeholder="Mindestens 6 Zeichen">
+
+    <label>Passwort wiederholen</label>
+    <input type="password" id="s1-pass2" placeholder="Nochmal eingeben">
+
+    <div class="msg" id="s1-msg"></div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="goStep(0)">← Zurueck</button>
+      <button class="btn btn-primary" onclick="saveAccount()">Weiter →</button>
+    </div>
+  </div>
+
+  <!-- ========== STEP 2: Lizenz ========== -->
+  <div class="step" id="step-2">
+    <h2>🎫 Lizenz</h2>
+    <div class="desc">Hast du bereits einen Lizenzschluessel? Falls nicht, startet automatisch eine
+      <b>30-Tage-Testphase</b> mit allen Features.</div>
+
+    <div class="license-toggle">
+      <button id="lic-trial" class="active" onclick="setLicMode('trial')">🆓 Testphase starten</button>
+      <button id="lic-key" onclick="setLicMode('key')">🔑 Schluessel eingeben</button>
+    </div>
+
+    <div id="lic-key-area" style="display:none">
+      <label>Lizenzschluessel</label>
+      <input type="text" id="s2-key" placeholder="VE-XXXX-XXXX-XXXX" style="text-transform:uppercase;font-family:monospace;letter-spacing:1px">
+      <div class="hint">Format: VE-XXXX-XXXX-XXXX (steht in deiner Bestaetigungs-E-Mail)</div>
+    </div>
+
+    <div id="lic-trial-info">
+      <div class="msg ok" style="display:block;margin-top:16px">
+        ✅ Die Testphase startet automatisch — <b>30 Tage alle Features kostenlos</b>.
+        Danach kannst du ein Abo abschliessen.
+      </div>
+    </div>
+
+    <div class="msg" id="s2-msg"></div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="goStep(1)">← Zurueck</button>
+      <button class="btn btn-primary" onclick="saveLicense()">Weiter →</button>
+    </div>
+  </div>
+
+  <!-- ========== STEP 3: Wechselrichter ========== -->
+  <div class="step" id="step-3">
+    <h2>☀️ Wechselrichter</h2>
+    <div class="desc">Welchen Wechselrichter hast du? Wir brauchen den Typ und die lokale IP-Adresse.</div>
+
+    <label>Hersteller / Typ</label>
+    <div class="hw-grid" id="inv-grid">
+      <div class="hw-card selected" data-type="fronius_gen24" onclick="selectHW(this,'inv')">
+        <div class="icon">🟠</div>
+        <div class="name">Fronius GEN24</div>
+        <div class="sub">Solar API + Modbus</div>
+      </div>
+      <div class="hw-card" data-type="sma_tripower" onclick="selectHW(this,'inv')" style="opacity:.5">
+        <div class="icon">🔵</div>
+        <div class="name">SMA Tripower</div>
+        <div class="sub">Bald verfuegbar</div>
+      </div>
+      <div class="hw-card" data-type="huawei_sun2000" onclick="selectHW(this,'inv')" style="opacity:.5">
+        <div class="icon">🔴</div>
+        <div class="name">Huawei SUN2000</div>
+        <div class="sub">Bald verfuegbar</div>
+      </div>
+      <div class="hw-card" data-type="kostal_plenticore" onclick="selectHW(this,'inv')" style="opacity:.5">
+        <div class="icon">🟣</div>
+        <div class="name">Kostal Plenticore</div>
+        <div class="sub">Bald verfuegbar</div>
+      </div>
+    </div>
+
+    <label>IP-Adresse des Wechselrichters</label>
+    <input type="text" id="s3-ip" placeholder="z.B. 192.168.1.80" value="">
+    <div class="hint">Findest du in deinem Router unter verbundene Geraete, oder im Display des Wechselrichters.</div>
+
+    <div id="s3-test-result" class="msg"></div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="goStep(2)">← Zurueck</button>
+      <button class="btn btn-primary" onclick="saveInverter()">Weiter →</button>
+    </div>
+    <button class="btn-skip" onclick="goStep(4)">Spaeter einrichten →</button>
+  </div>
+
+  <!-- ========== STEP 4: Stromtarif ========== -->
+  <div class="step" id="step-4">
+    <h2>💰 Stromtarif</h2>
+    <div class="desc">
+      Fuer die Preisoptimierung brauchen wir deinen Stromanbieter.
+      Dynamische Tarife (stuendlich wechselnde Preise) ermöglichen die beste Optimierung.
+    </div>
+
+    <label>Anbieter</label>
+    <div class="hw-grid">
+      <div class="hw-card selected" data-type="tibber" onclick="selectHW(this,'tariff');showTariffFields('tibber')">
+        <div class="icon">⚡</div>
+        <div class="name">Tibber</div>
+        <div class="sub">Dynamisch / GraphQL</div>
+      </div>
+      <div class="hw-card" data-type="fixed_price" onclick="selectHW(this,'tariff');showTariffFields('fixed_price')">
+        <div class="icon">📊</div>
+        <div class="name">Festpreis</div>
+        <div class="sub">Grundversorger</div>
+      </div>
+      <div class="hw-card" data-type="dual_rate" onclick="selectHW(this,'tariff');showTariffFields('dual_rate')">
+        <div class="icon">🌙</div>
+        <div class="name">HT/NT</div>
+        <div class="sub">Tag/Nacht-Strom</div>
+      </div>
+      <div class="hw-card" data-type="awattar" onclick="selectHW(this,'tariff')" style="opacity:.5">
+        <div class="icon">💡</div>
+        <div class="name">aWATTar</div>
+        <div class="sub">Bald verfuegbar</div>
+      </div>
+    </div>
+
+    <div id="tariff-tibber-fields">
+      <label>Tibber API Token</label>
+      <input type="text" id="s4-apikey" placeholder="Aus der Tibber App: Einstellungen → Entwickler">
+      <div class="hint">
+        Findest du in der Tibber App unter <b>Einstellungen → Entwickler</b>,
+        oder auf <a href="https://developer.tibber.com" target="_blank" style="color:var(--accent)">developer.tibber.com</a>
+      </div>
+    </div>
+
+    <div id="tariff-fixed-fields" style="display:none">
+      <label>Arbeitspreis (ct/kWh brutto)</label>
+      <input type="number" id="s4-fixed-price" placeholder="z.B. 32.5" step="0.1" value="32.5">
+      <div class="hint">Steht auf deiner Stromrechnung als "Arbeitspreis" (inkl. MwSt.)</div>
+      <label>Einspeiseverguetung (ct/kWh)</label>
+      <input type="number" id="s4-feed-in" placeholder="z.B. 8.2" step="0.1" value="8.2">
+    </div>
+
+    <div id="tariff-dual-fields" style="display:none">
+      <div class="row">
+        <div>
+          <label>Hochtarif HT (ct/kWh)</label>
+          <input type="number" id="s4-ht-price" placeholder="z.B. 32.5" step="0.1" value="32.5">
+        </div>
+        <div>
+          <label>Niedertarif NT (ct/kWh)</label>
+          <input type="number" id="s4-nt-price" placeholder="z.B. 22.0" step="0.1" value="22.0">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>NT Beginn</label>
+          <input type="text" id="s4-nt-start" placeholder="22:00" value="22:00">
+        </div>
+        <div>
+          <label>NT Ende</label>
+          <input type="text" id="s4-nt-end" placeholder="06:00" value="06:00">
+        </div>
+      </div>
+      <div class="hint">Niedertarif gilt z.B. von 22:00 bis 06:00 — ideal zum guenstigen Laden</div>
+      <label>Einspeiseverguetung (ct/kWh)</label>
+      <input type="number" id="s4-dual-feed-in" placeholder="z.B. 8.2" step="0.1" value="8.2">
+    </div>
+
+    <div class="msg" id="s4-msg"></div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="goStep(3)">← Zurueck</button>
+      <button class="btn btn-primary" onclick="saveTariff()">Weiter →</button>
+    </div>
+    <button class="btn-skip" onclick="goStep(5)">Spaeter einrichten →</button>
+  </div>
+
+  <!-- ========== STEP 5: PV-Anlage ========== -->
+  <div class="step" id="step-5">
+    <h2>🏠 PV-Anlage & Batterie</h2>
+    <div class="desc">Diese Daten verbessern die Prognose und Optimierung. Wenn du sie nicht weisst,
+      lass die Felder einfach leer — wir nutzen dann Standardwerte.</div>
+
+    <div class="row">
+      <div>
+        <label>PV-Leistung (kWp)</label>
+        <input type="number" id="s5-kwp" placeholder="z.B. 6.0" step="0.1">
+      </div>
+      <div>
+        <label>Ausrichtung (°)</label>
+        <input type="number" id="s5-azimuth" placeholder="0 = Sued" step="1">
+        <div class="hint">0°=Sued, -90°=Ost, 90°=West</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Dachneigung (°)</label>
+        <input type="number" id="s5-tilt" placeholder="z.B. 35" step="1">
+      </div>
+      <div>
+        <label>Batterie (kWh)</label>
+        <input type="number" id="s5-battery" placeholder="z.B. 7.68" step="0.01">
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <label>Standort</label>
+      <div class="row">
+        <div>
+          <input type="number" id="s5-lat" placeholder="Breitengrad" step="0.001">
+          <div class="hint">z.B. 48.08</div>
+        </div>
+        <div>
+          <input type="number" id="s5-lon" placeholder="Laengengrad" step="0.001">
+          <div class="hint">z.B. 11.02</div>
+        </div>
+      </div>
+      <button class="btn-skip" onclick="detectLocation()" style="margin-top:4px;text-decoration:none;color:var(--accent)">
+        📍 Standort automatisch erkennen
+      </button>
+    </div>
+
+    <div class="msg" id="s5-msg"></div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="goStep(4)">← Zurueck</button>
+      <button class="btn btn-primary" onclick="savePV()">Einrichtung abschliessen →</button>
+    </div>
+    <button class="btn-skip" onclick="finishSetup()">Spaeter einrichten →</button>
+  </div>
+
+  <!-- ========== STEP 6: Fertig ========== -->
+  <div class="step" id="step-6">
+    <div class="check-circle">✅</div>
+    <h2 style="justify-content:center">Einrichtung abgeschlossen!</h2>
+    <div class="desc" style="text-align:center">
+      Vista-Energy ist bereit. Das System lernt in den naechsten Tagen
+      dein Verbrauchsprofil und optimiert dann automatisch.<br><br>
+      Du kannst alle Einstellungen jederzeit im Dashboard unter
+      <b>Einstellungen</b> aendern.
+    </div>
+
+    <div id="s6-summary" style="background:var(--panel2);border-radius:12px;padding:16px;margin:16px 0;font-size:13px">
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="window.location.href='/login'" style="font-size:17px">
+        Zum Dashboard →
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ====== State ====== */
+let currentStep = 0;
+const totalSteps = 6;
+const setupData = {
+  account: {},
+  license: { mode: 'trial' },
+  inverter: { type: 'fronius_gen24' },
+  tariff: { type: 'tibber' },
+  pv: {},
+  location: {}
+};
+let selectedInv = 'fronius_gen24';
+let selectedTariff = 'tibber';
+
+/* ====== Navigation ====== */
+function goStep(n) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step-' + n).classList.add('active');
+  currentStep = n;
+  // Update progress
+  document.querySelectorAll('.progress .dot').forEach((d, i) => {
+    d.className = 'dot' + (i < n ? ' done' : '') + (i === n ? ' active' : '');
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ====== Step 1: Account ====== */
+function saveAccount() {
+  const user = document.getElementById('s1-user').value.trim();
+  const pass = document.getElementById('s1-pass').value;
+  const pass2 = document.getElementById('s1-pass2').value;
+  const msg = document.getElementById('s1-msg');
+
+  if (!user) { showMsg(msg, 'err', 'Bitte Benutzername eingeben'); return; }
+  if (pass.length < 6) { showMsg(msg, 'err', 'Passwort muss mindestens 6 Zeichen lang sein'); return; }
+  if (pass !== pass2) { showMsg(msg, 'err', 'Passwoerter stimmen nicht ueberein'); return; }
+
+  setupData.account = { username: user, password: pass };
+  goStep(2);
+}
+
+/* ====== Step 2: License ====== */
+function setLicMode(mode) {
+  setupData.license.mode = mode;
+  document.getElementById('lic-trial').className = mode === 'trial' ? 'active' : '';
+  document.getElementById('lic-key').className = mode === 'key' ? 'active' : '';
+  document.getElementById('lic-key-area').style.display = mode === 'key' ? 'block' : 'none';
+  document.getElementById('lic-trial-info').style.display = mode === 'trial' ? 'block' : 'none';
+}
+
+function saveLicense() {
+  const msg = document.getElementById('s2-msg');
+  if (setupData.license.mode === 'key') {
+    const key = document.getElementById('s2-key').value.trim().toUpperCase();
+    if (!/^VE-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(key)) {
+      showMsg(msg, 'err', 'Ungueltiges Format. Erwartet: VE-XXXX-XXXX-XXXX');
+      return;
+    }
+    setupData.license.key = key;
+  }
+  goStep(3);
+}
+
+/* ====== Step 3: Inverter ====== */
+function selectHW(el, category) {
+  const type = el.dataset.type;
+  // Nur verfuegbare Plugins erlauben
+  if (el.style.opacity === '0.5') {
+    return; // Noch nicht verfuegbar
+  }
+  el.parentElement.querySelectorAll('.hw-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  if (category === 'inv') selectedInv = type;
+  if (category === 'tariff') selectedTariff = type;
+}
+
+function saveInverter() {
+  const ip = document.getElementById('s3-ip').value.trim();
+  const msg = document.getElementById('s3-test-result');
+
+  if (!ip) { showMsg(msg, 'err', 'Bitte IP-Adresse eingeben'); return; }
+  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
+    showMsg(msg, 'err', 'Ungueltige IP-Adresse (z.B. 192.168.1.80)');
+    return;
+  }
+
+  setupData.inverter = { type: selectedInv, ip: ip };
+
+  // Verbindung testen
+  showMsg(msg, 'warn', '<span class="spinner"></span> Teste Verbindung...');
+  fetch('/api/setup/test-inverter', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: selectedInv, ip: ip })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.connected) {
+      showMsg(msg, 'ok', '✅ ' + d.message);
+      setTimeout(() => goStep(4), 1200);
+    } else {
+      showMsg(msg, 'err', '❌ ' + d.message + ' — Du kannst trotzdem fortfahren.');
+      // Button zum Weitermachen anbieten
+      msg.innerHTML += '<br><button class="btn-skip" onclick="goStep(4)" style="color:var(--accent);margin-top:8px">Trotzdem weiter →</button>';
+    }
+  })
+  .catch(() => {
+    showMsg(msg, 'err', 'Verbindungstest fehlgeschlagen. Du kannst trotzdem fortfahren.');
+    msg.innerHTML += '<br><button class="btn-skip" onclick="goStep(4)" style="color:var(--accent);margin-top:8px">Trotzdem weiter →</button>';
+  });
+}
+
+/* ====== Step 4: Tariff ====== */
+function showTariffFields(type) {
+  document.getElementById('tariff-tibber-fields').style.display = type === 'tibber' ? 'block' : 'none';
+  document.getElementById('tariff-fixed-fields').style.display = type === 'fixed_price' ? 'block' : 'none';
+  document.getElementById('tariff-dual-fields').style.display = type === 'dual_rate' ? 'block' : 'none';
+}
+
+function saveTariff() {
+  const msg = document.getElementById('s4-msg');
+  setupData.tariff = { type: selectedTariff };
+
+  if (selectedTariff === 'tibber') {
+    const apikey = document.getElementById('s4-apikey').value.trim();
+    if (apikey) setupData.tariff.api_key = apikey;
+  } else if (selectedTariff === 'fixed_price') {
+    setupData.tariff.price_ct = parseFloat(document.getElementById('s4-fixed-price').value) || 32.5;
+    setupData.tariff.feed_in_ct = parseFloat(document.getElementById('s4-feed-in').value) || 8.2;
+  } else if (selectedTariff === 'dual_rate') {
+    setupData.tariff.ht_price_ct = parseFloat(document.getElementById('s4-ht-price').value) || 32.5;
+    setupData.tariff.nt_price_ct = parseFloat(document.getElementById('s4-nt-price').value) || 22.0;
+    setupData.tariff.nt_start = document.getElementById('s4-nt-start').value || '22:00';
+    setupData.tariff.nt_end = document.getElementById('s4-nt-end').value || '06:00';
+    setupData.tariff.feed_in_ct = parseFloat(document.getElementById('s4-dual-feed-in').value) || 8.2;
+  }
+
+  goStep(5);
+}
+
+/* ====== Step 5: PV ====== */
+function detectLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      document.getElementById('s5-lat').value = pos.coords.latitude.toFixed(3);
+      document.getElementById('s5-lon').value = pos.coords.longitude.toFixed(3);
+      showMsg(document.getElementById('s5-msg'), 'ok', '📍 Standort erkannt!');
+    }, () => {
+      showMsg(document.getElementById('s5-msg'), 'err', 'Standort konnte nicht erkannt werden. Bitte manuell eingeben.');
+    });
+  }
+}
+
+function savePV() {
+  const kwp = document.getElementById('s5-kwp').value;
+  const tilt = document.getElementById('s5-tilt').value;
+  const azimuth = document.getElementById('s5-azimuth').value;
+  const battery = document.getElementById('s5-battery').value;
+  const lat = document.getElementById('s5-lat').value;
+  const lon = document.getElementById('s5-lon').value;
+
+  if (kwp) setupData.pv.kwp = parseFloat(kwp);
+  if (tilt) setupData.pv.tilt = parseInt(tilt);
+  if (azimuth !== '') setupData.pv.azimuth = parseInt(azimuth);
+  if (battery) setupData.pv.battery_kwh = parseFloat(battery);
+  if (lat) setupData.location.lat = parseFloat(lat);
+  if (lon) setupData.location.lon = parseFloat(lon);
+
+  finishSetup();
+}
+
+/* ====== Finish ====== */
+function finishSetup() {
+  // Alles an den Server senden
+  fetch('/api/setup/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(setupData)
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      // Summary anzeigen
+      let html = '<table style="width:100%;border-collapse:collapse">';
+      const rows = [];
+      if (setupData.account.username) rows.push(['👤 Benutzer', setupData.account.username]);
+      rows.push(['🎫 Lizenz', setupData.license.mode === 'trial' ? '30-Tage-Testphase' : 'Schluessel: ' + (setupData.license.key || '').substring(0, 7) + '...']);
+      if (setupData.inverter.type) rows.push(['☀️ Wechselrichter', setupData.inverter.type.replace('_', ' ').toUpperCase() + (setupData.inverter.ip ? ' (' + setupData.inverter.ip + ')' : '')]);
+      if (setupData.tariff.type) rows.push(['💰 Tarif', setupData.tariff.type.charAt(0).toUpperCase() + setupData.tariff.type.slice(1)]);
+      if (setupData.pv.kwp) rows.push(['🏠 PV-Anlage', setupData.pv.kwp + ' kWp']);
+      if (setupData.pv.battery_kwh) rows.push(['🔋 Batterie', setupData.pv.battery_kwh + ' kWh']);
+
+      rows.forEach(([k, v]) => {
+        html += '<tr><td style="padding:6px 0;color:var(--muted)">' + k + '</td><td style="padding:6px 0;text-align:right;font-weight:600">' + v + '</td></tr>';
+      });
+      html += '</table>';
+      document.getElementById('s6-summary').innerHTML = html;
+
+      goStep(6);
+    } else {
+      alert('Fehler: ' + (d.message || 'Unbekannt'));
+    }
+  })
+  .catch(e => alert('Verbindungsfehler: ' + e));
+}
+
+/* ====== Helpers ====== */
+function showMsg(el, type, html) {
+  el.className = 'msg ' + type;
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+</script>
+</body>
+</html>
