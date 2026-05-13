@@ -331,6 +331,72 @@ class LicenseService:
         except (ValueError, TypeError):
             return True
 
+    def extend_license(self, days: int, plan: str = None,
+                       subscription_id: str = None) -> Dict:
+        """Lizenz um Tage verlaengern (nach PayPal-Zahlung).
+
+        Args:
+            days: Anzahl Tage zur Verlaengerung
+            plan: Planname (monthly, yearly, lifetime)
+            subscription_id: PayPal Subscription-ID
+
+        Returns:
+            {'success': bool, 'expires': str}
+        """
+        current_expires = self._license.get('expires')
+        now = datetime.now()
+
+        if current_expires:
+            try:
+                exp_dt = datetime.fromisoformat(current_expires)
+                if exp_dt > now:
+                    new_expires = exp_dt + timedelta(days=days)
+                else:
+                    new_expires = now + timedelta(days=days)
+            except (ValueError, TypeError):
+                new_expires = now + timedelta(days=days)
+        else:
+            new_expires = now + timedelta(days=days)
+
+        if not self._license.get('key'):
+            from services.payment_service import PaymentService
+            self._license['key'] = PaymentService.generate_license_key()
+
+        self._license['verified'] = True
+        self._license['expires'] = new_expires.isoformat()
+        self._license['last_verified'] = now.isoformat()
+        if plan:
+            self._license['plan'] = plan
+        if subscription_id:
+            self._license['subscription_id'] = subscription_id
+        self._save_license()
+
+        logger.info(
+            f"Lizenz verlaengert um {days} Tage → "
+            f"gueltig bis {new_expires.strftime('%d.%m.%Y')}"
+        )
+        return {
+            'success': True,
+            'key': self._license['key'],
+            'expires': new_expires.isoformat(),
+            'plan': plan,
+        }
+
+    def activate_from_payment(self, plan: str, days: int,
+                              subscription_id: str = None) -> Dict:
+        """Lizenz nach erfolgreicher Zahlung aktivieren.
+
+        Wird vom Payment-Webhook oder In-App-Checkout aufgerufen.
+        """
+        hw_id = self.get_hardware_id()
+        result = self.extend_license(days, plan, subscription_id)
+        if result['success']:
+            self._license['hardware_id'] = hw_id
+            self._license['activated_at'] = datetime.now().isoformat()
+            self._license['payment_method'] = 'paypal'
+            self._save_license()
+        return result
+
     def deactivate(self) -> Dict:
         """Lizenz deaktivieren (z.B. bei Geraetewechsel).
 

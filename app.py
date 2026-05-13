@@ -155,6 +155,7 @@ from services.evcc_service import EVCCService
 from services.optimizer import Optimizer
 from services.learning import LearningService
 from services.license_service import LicenseService
+from services.payment_service import PaymentService
 from services.plugin_registry import PluginRegistry
 from services.plugin_adapters import InverterAdapter, TariffAdapter, WallboxAdapter
 from services.plugin_registry import PluginRegistry
@@ -279,7 +280,7 @@ def load_user(user_id):
 
 
 # Schutz aller /api/*, /api/login + statische Dateien sind frei
-PUBLIC_ENDPOINTS = {'login', 'api_login', 'static', 'favicon', 'setup_wizard', 'api_setup_test_inverter', 'api_setup_complete'}
+PUBLIC_ENDPOINTS = {'login', 'api_login', 'static', 'favicon', 'setup_wizard', 'api_setup_test_inverter', 'api_setup_complete', 'api_payment_webhook'}
 
 
 @app.before_request
@@ -1798,6 +1799,18 @@ def get_services():
     if license_service is None:
         license_service = LicenseService(app_dir)
 
+    # Payment Service (PayPal)
+    config = {}
+    config_path = app_dir / 'config.yaml'
+    if config_path.exists():
+        try:
+            import yaml
+            with open(config_path) as f:
+                config = yaml.safe_load(f) or {}
+        except Exception:
+            pass
+    payment_service = PaymentService(config)
+
     return {
         'tibber': tibber_service,
         'forecast': forecast_service,
@@ -1807,6 +1820,7 @@ def get_services():
         'optimizer': optimizer_service,
         'learning': learning_service,
         'license': license_service,
+        'payment': payment_service,
         'registry': plugin_registry,
     }
 
@@ -2836,6 +2850,182 @@ def api_license_deactivate():
     except Exception as e:
         logger.error(f'license deactivate error: {e}')
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# --- Payment / PayPal API ---
+
+@app.route('/api/payment/plans')
+def api_payment_plans():
+    """Verfuegbare Abo-Plaene und PayPal-Konfiguration."""
+    try:
+        pay = get_services()['payment']
+        info = pay.get_plans_info()
+        lic = get_services()['license']
+        info['hardware_id'] = lic.get_hardware_id()
+        return jsonify(info)
+    except Exception as e:
+        logger.error(f'payment plans error: {e}')
+        return jsonify({'configured': False, 'message': str(e)}), 500
+
+
+@app.route('/api/payment/create-subscription', methods=['POST'])
+def api_payment_create_subscription():
+    """PayPal-Abo starten (monatlich/jaehrlich)."""
+    if is_readonly_user():
+        return jsonify({'success': False, 'message': 'Keine Berechtigung'}), 403
+    data = request.get_json() or {}
+    plan = data.get('plan', 'monthly')
+    try:
+        pay = get_services()['payment']
+        lic = get_services()['license']
+        hw_id = lic.get_hardware_id()
+        base_url = request.host_url.rstrip('/')
+        result = pay.create_subscription(
+            plan=plan,
+            hardware_id=hw_id,
+            return_url=f"{base_url}/?payment=success",
+            cancel_url=f"{base_url}/?payment=cancelled",
+        )
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f'create subscription error: {e}')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/payment/create-order', methods=['POST'])
+def api_payment_create_order():
+    """PayPal-Order fuer Einmalkauf erstellen."""
+    if is_readonly_user():
+        return jsonify({'success': False, 'message': 'Keine Berechtigung'}), 403
+    data = request.get_json() or {}
+    plan = data.get('plan', 'lifetime')
+    try:
+        pay = get_services()['payment']
+        lic = get_services()['license']
+        hw_id = lic.get_hardware_id()
+        result = pay.create_order(plan=plan, hardware_id=hw_id)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f'create order error: {e}')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/payment/capture-order', methods=['POST'])
+def api_payment_capture_order():
+    """PayPal-Order abschliessen und Lizenz aktivieren."""
+    if is_readonly_user():
+        return jsonify({'success': False, 'message': 'Keine Berechtigung'}), 403
+    data = request.get_json() or {}
+    order_id = data.get('order_id', '')
+    plan = data.get('plan', 'lifetime')
+    if not order_id:
+        return jsonify({'success': False, 'message': 'Keine Order-ID'}), 400
+    try:
+        pay = get_services()['payment']
+        lic = get_services()['license']
+        capture = pay.capture_order(order_id)
+        if capture['success']:
+            plan_info = pay.PLANS.get(plan, {})
+            days = plan_info.get('license_days', 365)
+            result = lic.activate_from_payment(plan=plan, days=days)
+            result['transaction_id'] = capture.get('transaction_id')
+            return jsonify(result)
+        return jsonify(capture), 400
+    except Exception as e:
+        logger.error(f'capture order error: {e}')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/payment/subscription-complete', methods=['POST'])
+def api_payment_subscription_complete():
+    """PayPal-Abo nach Kundengenehmigung aktivieren."""
+    if is_readonly_user():
+        return jsonify({'success': False, 'message': 'Keine Berechtigung'}), 403
+    data = request.get_json() or {}
+    subscription_id = data.get('subscription_id', '')
+    plan = data.get('plan', 'monthly')
+    if not subscription_id:
+        return jsonify({'success': False, 'message': 'Keine Subscription-ID'}), 400
+    try:
+        pay = get_services()['payment']
+        lic = get_services()['license']
+        sub = pay.get_subscription_status(subscription_id)
+        if sub.get('status') == 'ACTIVE':
+            plan_info = pay.PLANS.get(plan, {})
+            days = plan_info.get('license_days', 35)
+            result = lic.activate_from_payment(
+                plan=plan, days=days, subscription_id=subscription_id
+            )
+            return jsonify(result)
+        return jsonify({
+            'success': False,
+            'message': f"Abo-Status: {sub.get('status', 'unbekannt')}"
+        }), 400
+    except Exception as e:
+        logger.error(f'subscription complete error: {e}')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/payment/webhook', methods=['POST'])
+def api_payment_webhook():
+    """PayPal Webhook — automatische Lizenzverlaengerung.
+
+    Wird von PayPal aufgerufen bei:
+      - PAYMENT.SALE.COMPLETED → Abo-Zahlung eingegangen
+      - BILLING.SUBSCRIPTION.CANCELLED → Abo gekuendigt
+      - BILLING.SUBSCRIPTION.ACTIVATED → Neues Abo aktiviert
+    """
+    try:
+        pay = get_services()['payment']
+        body = request.get_data()
+
+        webhook_headers = {
+            'PAYPAL-AUTH-ALGO': request.headers.get('PAYPAL-AUTH-ALGO', ''),
+            'PAYPAL-CERT-URL': request.headers.get('PAYPAL-CERT-URL', ''),
+            'PAYPAL-TRANSMISSION-ID': request.headers.get('PAYPAL-TRANSMISSION-ID', ''),
+            'PAYPAL-TRANSMISSION-SIG': request.headers.get('PAYPAL-TRANSMISSION-SIG', ''),
+            'PAYPAL-TRANSMISSION-TIME': request.headers.get('PAYPAL-TRANSMISSION-TIME', ''),
+        }
+
+        if not pay.verify_webhook(webhook_headers, body):
+            logger.warning("PayPal Webhook: Signatur ungueltig")
+            return jsonify({'status': 'invalid_signature'}), 401
+
+        event = json.loads(body)
+        event_type = event.get('event_type', '')
+        resource = event.get('resource', {})
+
+        result = pay.process_webhook(event_type, resource)
+        action = result.get('action')
+
+        if action in ('extend', 'activate'):
+            lic = get_services()['license']
+            lic.extend_license(
+                days=result.get('days', 35),
+                plan=result.get('plan'),
+                subscription_id=result.get('subscription_id'),
+            )
+            logger.info(
+                f"PayPal Webhook: Lizenz verlaengert "
+                f"(Plan: {result.get('plan')}, Tage: {result.get('days')})"
+            )
+        elif action == 'cancel':
+            logger.info(
+                f"PayPal Webhook: Abo gekuendigt "
+                f"(Sub: {result.get('subscription_id')}). "
+                f"Lizenz laeuft zum Ende der Periode aus."
+            )
+        elif action == 'suspend':
+            logger.warning(
+                f"PayPal Webhook: Abo suspendiert "
+                f"(Zahlungsproblem, Sub: {result.get('subscription_id')})"
+            )
+
+        return jsonify({'status': 'ok', 'action': action}), 200
+
+    except Exception as e:
+        logger.error(f'payment webhook error: {e}')
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 @app.route("/api/system/plugins")

@@ -126,6 +126,18 @@ input[type=number],input[type=text],select{background:var(--panel2);color:var(--
   .chart-tabs{gap:9px;font-size:12px;letter-spacing:.04em;flex-wrap:wrap}
 }
 </style>
+<script id="paypal-sdk-loader">
+(function(){
+  fetch('/api/payment/plans').then(r=>r.json()).then(d=>{
+    if(!d.configured||!d.client_id) return;
+    window._paypalPlans=d;
+    var s=document.createElement('script');
+    s.src='https://www.paypal.com/sdk/js?client-id='+d.client_id+'&currency=EUR&intent=capture&vault=true';
+    s.onload=function(){ window._paypalReady=true; if(window._initPayPal) window._initPayPal(); };
+    document.head.appendChild(s);
+  }).catch(function(){});
+})();
+</script>
 </head>
 <body>
 <header>
@@ -430,6 +442,31 @@ input[type=number],input[type=text],select{background:var(--panel2);color:var(--
 	      <button class="btn small" id="lic-deactivate-btn" style="display:none" onclick="deactivateLicense()">Deaktivieren</button>
 	    </div>
 	    <div class="note" id="lic-message" style="margin-top:8px">-</div>
+
+	    <!-- In-App Zahlung / PayPal -->
+	    <div id="payment-section" style="display:none;margin-top:16px;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px">
+	      <h3 style="margin:0 0 12px 0;font-size:15px">Direkt hier aktivieren</h3>
+	      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+	        <div class="payment-plan" id="plan-monthly" onclick="selectPlan('monthly')" style="flex:1;min-width:140px;padding:12px;border-radius:8px;border:2px solid rgba(255,255,255,0.15);cursor:pointer;text-align:center;transition:border-color 0.2s">
+	          <div style="font-size:13px;opacity:0.7">Monatlich</div>
+	          <div style="font-size:22px;font-weight:700;margin:4px 0" id="price-monthly">4,99 &euro;</div>
+	          <div style="font-size:11px;opacity:0.5">pro Monat / automatisch</div>
+	        </div>
+	        <div class="payment-plan" id="plan-yearly" onclick="selectPlan('yearly')" style="flex:1;min-width:140px;padding:12px;border-radius:8px;border:2px solid var(--accent);cursor:pointer;text-align:center;position:relative;transition:border-color 0.2s">
+	          <div style="position:absolute;top:-8px;right:8px;background:var(--accent);color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px">BELIEBT</div>
+	          <div style="font-size:13px;opacity:0.7">Jaehrlich</div>
+	          <div style="font-size:22px;font-weight:700;margin:4px 0" id="price-yearly">49,99 &euro;</div>
+	          <div style="font-size:11px;opacity:0.5">pro Jahr / 2 Monate gratis</div>
+	        </div>
+	        <div class="payment-plan" id="plan-lifetime" onclick="selectPlan('lifetime')" style="flex:1;min-width:140px;padding:12px;border-radius:8px;border:2px solid rgba(255,255,255,0.15);cursor:pointer;text-align:center;transition:border-color 0.2s">
+	          <div style="font-size:13px;opacity:0.7">Lifetime</div>
+	          <div style="font-size:22px;font-weight:700;margin:4px 0" id="price-lifetime">149,99 &euro;</div>
+	          <div style="font-size:11px;opacity:0.5">einmalig / fuer immer</div>
+	        </div>
+	      </div>
+	      <div id="paypal-button-container" style="max-width:400px"></div>
+	      <div id="payment-message" class="note" style="margin-top:8px;display:none"></div>
+	    </div>
 	  </section>
 
 	  {% if expert_mode %}
@@ -1385,6 +1422,7 @@ async function loadHeatpump(){
 	  try{
 	    const lic = await api('/api/license/status');
 	    renderLicense(lic);
+	    renderLicensePayment(lic);
 	  }catch(e){ console.debug('license', e); }
 	}
 
@@ -1413,6 +1451,124 @@ async function loadHeatpump(){
 	    alert(r.message || 'Lizenz deaktiviert');
 	    await loadLicense();
 	  }catch(e){ alert('Fehler: ' + e.message); }
+	}
+
+	// ===== In-App Payment (PayPal) =====
+	let selectedPlan = 'yearly';
+	let paypalButtonsRendered = false;
+
+	function selectPlan(plan){
+	  selectedPlan = plan;
+	  document.querySelectorAll('.payment-plan').forEach(el => {
+	    el.style.borderColor = 'rgba(255,255,255,0.15)';
+	  });
+	  const el = $('plan-'+plan);
+	  if(el) el.style.borderColor = 'var(--accent)';
+	  renderPayPalButtons();
+	}
+
+	function showPaymentMessage(msg, isError){
+	  const el = $('payment-message');
+	  if(!el) return;
+	  el.style.display = 'block';
+	  el.textContent = msg;
+	  el.style.color = isError ? 'var(--bad)' : 'var(--accent)';
+	}
+
+	function renderPayPalButtons(){
+	  if(!window._paypalReady || !window.paypal) return;
+	  const container = $('paypal-button-container');
+	  if(!container) return;
+	  container.innerHTML = '';
+	  paypalButtonsRendered = true;
+
+	  if(selectedPlan === 'lifetime'){
+	    // Einmalkauf via Orders API
+	    paypal.Buttons({
+	      style: { layout:'vertical', color:'gold', shape:'rect', label:'pay', height:40 },
+	      createOrder: async function(){
+	        const r = await api('/api/payment/create-order', {
+	          method:'POST',
+	          headers:{'Content-Type':'application/json'},
+	          body: JSON.stringify({plan:'lifetime'})
+	        });
+	        if(!r.success){ showPaymentMessage(r.message, true); throw new Error(r.message); }
+	        return r.order_id;
+	      },
+	      onApprove: async function(data){
+	        showPaymentMessage('Zahlung wird verarbeitet...', false);
+	        const r = await api('/api/payment/capture-order', {
+	          method:'POST',
+	          headers:{'Content-Type':'application/json'},
+	          body: JSON.stringify({order_id: data.orderID, plan:'lifetime'})
+	        });
+	        if(r.success){
+	          showPaymentMessage('Lifetime-Lizenz aktiviert! Vielen Dank.', false);
+	          await loadLicense();
+	        } else {
+	          showPaymentMessage('Fehler: '+(r.message||'Unbekannt'), true);
+	        }
+	      },
+	      onError: function(err){ showPaymentMessage('PayPal-Fehler: '+err.message, true); }
+	    }).render('#paypal-button-container');
+	  } else {
+	    // Abo (monatlich/jaehrlich) via Subscriptions API
+	    paypal.Buttons({
+	      style: { layout:'vertical', color:'gold', shape:'rect', label:'subscribe', height:40 },
+	      createSubscription: async function(data, actions){
+	        const r = await api('/api/payment/create-subscription', {
+	          method:'POST',
+	          headers:{'Content-Type':'application/json'},
+	          body: JSON.stringify({plan: selectedPlan})
+	        });
+	        if(!r.success){ showPaymentMessage(r.message, true); throw new Error(r.message); }
+	        return r.subscription_id;
+	      },
+	      onApprove: async function(data){
+	        showPaymentMessage('Abo wird aktiviert...', false);
+	        const r = await api('/api/payment/subscription-complete', {
+	          method:'POST',
+	          headers:{'Content-Type':'application/json'},
+	          body: JSON.stringify({subscription_id: data.subscriptionID, plan: selectedPlan})
+	        });
+	        if(r.success){
+	          showPaymentMessage('Abo erfolgreich aktiviert! Vielen Dank.', false);
+	          await loadLicense();
+	        } else {
+	          showPaymentMessage('Fehler: '+(r.message||'Unbekannt'), true);
+	        }
+	      },
+	      onError: function(err){ showPaymentMessage('PayPal-Fehler: '+err.message, true); }
+	    }).render('#paypal-button-container');
+	  }
+	}
+
+	window._initPayPal = function(){
+	  const section = $('payment-section');
+	  if(section) {
+	    section.style.display = '';
+	    // Preise aus Server-Config uebernehmen
+	    const plans = window._paypalPlans && window._paypalPlans.plans;
+	    if(plans){
+	      if(plans.monthly) $('price-monthly').textContent = plans.monthly.price.toFixed(2).replace('.',',')+' €';
+	      if(plans.yearly) $('price-yearly').textContent = plans.yearly.price.toFixed(2).replace('.',',')+' €';
+	      if(plans.lifetime) $('price-lifetime').textContent = plans.lifetime.price.toFixed(2).replace('.',',')+' €';
+	    }
+	    selectPlan('yearly');
+	  }
+	};
+
+	function renderLicensePayment(lic){
+	  const section = $('payment-section');
+	  if(!section) return;
+	  const active = lic && lic.active && lic.mode === 'licensed';
+	  // Zahlungs-UI nur anzeigen wenn Trial oder abgelaufen
+	  if(active){
+	    section.style.display = 'none';
+	  } else if(window._paypalReady){
+	    section.style.display = '';
+	    if(!paypalButtonsRendered) renderPayPalButtons();
+	  }
 	}
 
 	// ===== Update =====

@@ -120,3 +120,17 @@ wallbox:
   # KEBA KeContact P30 (UDP):
   # type: keba_kecontact
   # ip: 192.168.1.120
+
+# ==================================================================
+# Zahlung / PayPal (In-App Aktivierung)
+# ==================================================================
+# payment:
+#   paypal_client_id: YOUR_PAYPAL_CLIENT_ID
+#   paypal_secret: YOUR_PAYPAL_SECRET
+#   paypal_mode: sandbox           # sandbox | live
+#   paypal_webhook_id: YOUR_WEBHOOK_ID
+#   monthly_plan_id: P-XXXXX      # PayPal Subscription Plan ID (monatlich)
+#   yearly_plan_id: P-YYYYY       # PayPal Subscription Plan ID (jaehrlich)
+#   price_monthly: 4.99
+#   price_yearly: 49.99
+#   price_lifetime: 149.99
