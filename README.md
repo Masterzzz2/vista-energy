@@ -233,9 +233,10 @@ Vista-Energy is a commercial product with a subscription model:
 | Plan | Price | Included |
 |---|---|---|
 | **Monthly** | 4.99 EUR/month | All features, updates, support |
-| **Yearly** | 39.99 EUR/year | All features, updates, support (33% discount) |
+| **Yearly** | 49.99 EUR/year | All features, updates, support |
+| **Lifetime** | 149.99 EUR (one-time) | All features, lifetime updates & support |
 
-Licenses are purchased via [vista-pv.com](https://vista-pv.com) (PayPal subscription).
+Licenses are purchased via [vista-pv.com](https://vista-pv.com) (PayPal).
 
 ---
 
@@ -495,9 +496,10 @@ Vista-Energy ist ein kommerzielles Produkt mit Abo-Modell:
 | Plan | Preis | Enthaltene Features |
 |---|---|---|
 | **Monatlich** | 4,99 EUR/Monat | Alle Features, Updates, Support |
-| **Jaehrlich** | 39,99 EUR/Jahr | Alle Features, Updates, Support (33% Rabatt) |
+| **Jaehrlich** | 49,99 EUR/Jahr | Alle Features, Updates, Support |
+| **Lifetime** | 149,99 EUR (einmalig) | Alle Features, lebenslange Updates & Support |
 
-Lizenzen werden ueber [vista-pv.com](https://vista-pv.com) erworben (PayPal-Abo).
+Lizenzen werden ueber [vista-pv.com](https://vista-pv.com) erworben (PayPal).
 
 ---
 
@@ -513,8 +515,9 @@ Lizenzen werden ueber [vista-pv.com](https://vista-pv.com) erworben (PayPal-Abo)
 
 ---
 
-## Kontakt
+## Kontakt / Support
 
 - **Website:** [vista-pv.com](https://vista-pv.com)
+- **Support-Tickets:** [vista-pv.com/#kontakt](https://vista-pv.com/#kontakt)
 - **E-Mail:** info@vista-pv.com
 - **GitHub:** [Masterzzz2/vista-energy](https://github.com/Masterzzz2/vista-energy)
