@@ -78,7 +78,36 @@ WALLBOX_PLUGINS = {
 }
 
 BATTERY_PLUGINS = {
-    # Meist ueber Wechselrichter gesteuert, daher selten direkt noetig
+    'byd_hvs': {
+        'module': 'services.batteries.byd_hvs',
+        'class': 'BYDHVSBattery',
+        'name': 'BYD Battery-Box Premium HVS/HVM',
+    },
+    'lg_resu': {
+        'module': 'services.batteries.lg_resu',
+        'class': 'LGResuBattery',
+        'name': 'LG RESU',
+    },
+    'tesla_powerwall': {
+        'module': 'services.batteries.tesla_powerwall',
+        'class': 'TeslaPowerwallBattery',
+        'name': 'Tesla Powerwall',
+    },
+    'sonnen_batterie': {
+        'module': 'services.batteries.sonnen_batterie',
+        'class': 'SonnenBatterieBattery',
+        'name': 'sonnenBatterie',
+    },
+    'huawei_luna2000': {
+        'module': 'services.batteries.huawei_luna2000',
+        'class': 'HuaweiLuna2000Battery',
+        'name': 'Huawei LUNA2000',
+    },
+    'e3dc': {
+        'module': 'services.batteries.e3dc',
+        'class': 'E3DCBattery',
+        'name': 'E3/DC Hauskraftwerk',
+    },
 }
 
 TARIFF_PLUGINS = {

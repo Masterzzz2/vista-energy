@@ -47,13 +47,47 @@ pv:
   azimuth: 0                  # Ausrichtung (0=Sued, -90=Ost, 90=West)
 
 # ==================================================================
-# Batterie
+# Batterie — waehlen Sie Ihren Hersteller
 # ==================================================================
 battery:
-  type: byd_hvs               # byd_hvs | lg_chem | generic
+  type: byd_hvs               # byd_hvs | lg_resu | tesla_powerwall | sonnen_batterie | huawei_luna2000 | e3dc
   capacity_kwh: 10.0          # Gesamtkapazitaet in kWh
   usable_kwh: 9.0             # Nutzbare Kapazitaet in kWh
   min_soc: 5                  # Minimaler Ladestand in %
+
+  # BYD Battery-Box HVS/HVM (Modbus TCP via BMS):
+  # type: byd_hvs
+  # ip: 192.168.1.80
+  # modbus_port: 8080
+  # capacity_kwh: 10.24
+
+  # LG RESU (Modbus TCP ueber Wechselrichter):
+  # type: lg_resu
+  # ip: 192.168.1.80
+  # capacity_kwh: 9.8
+
+  # Tesla Powerwall (lokale Gateway API):
+  # type: tesla_powerwall
+  # ip: 192.168.1.150
+  # email: user@example.com
+  # password: GATEWAY_PASSWORD
+  # capacity_kwh: 13.5
+
+  # sonnenBatterie (lokale REST-API):
+  # type: sonnen_batterie
+  # ip: 192.168.1.160
+  # api_key: YOUR_API_KEY
+  # capacity_kwh: 10.0
+
+  # Huawei LUNA2000 (Modbus TCP ueber SUN2000):
+  # type: huawei_luna2000
+  # ip: 192.168.1.90
+  # capacity_kwh: 10.0
+
+  # E3/DC Hauskraftwerk (Modbus TCP Simple Mode):
+  # type: e3dc
+  # ip: 192.168.1.170
+  # capacity_kwh: 13.0
 
 # ==================================================================
 # Standort (fuer Wettervorhersage & PV-Prognose)
