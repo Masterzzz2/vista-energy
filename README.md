@@ -4,7 +4,7 @@
 
 Vista-Energy is a fully automated energy management system for photovoltaic systems with battery storage. It runs locally on a mini PC and maximizes self-consumption through intelligent control of battery, EV charger, and consumers — based on real-time electricity prices, PV forecasts, and learned consumption profiles.
 
-> **Website:** [vista-pv.com](https://vista-pv.com) | **Admin Panel:** [admin.vista-pv.com](https://admin.vista-pv.com)
+> **Website:** [vista-pv.com](https://vista-pv.com)
 
 ---
 
@@ -125,8 +125,7 @@ Vista-Energy (Mini PC, local)
 ### Cloud Infrastructure (Cloudflare)
 ```
 vista-pv.com            -> Cloudflare Pages (website + PayPal subscriptions)
-license.vista-pv.com    -> Cloudflare Worker (license API)
-admin.vista-pv.com      -> Cloudflare Worker (admin dashboard)
+license.vista-energy.de -> Cloudflare Worker (license API)
 D1 Database              -> License management
 R2 Bucket                -> Update archive (OTA)
 ```
@@ -267,7 +266,7 @@ Licenses are purchased via [vista-pv.com](https://vista-pv.com) (PayPal subscrip
 
 Vista-Energy ist ein vollautomatisches Energiemanagement-System fuer Photovoltaik-Anlagen mit Batteriespeicher. Es laeuft lokal auf einem Mini-PC und optimiert den Eigenverbrauch durch intelligente Steuerung von Batterie, Wallbox und Verbrauchern — basierend auf Echtzeit-Strompreisen, PV-Prognosen und gelernten Verbrauchsprofilen.
 
-> **Website:** [vista-pv.com](https://vista-pv.com) | **Lizenz-Verwaltung:** [admin.vista-pv.com](https://admin.vista-pv.com)
+> **Website:** [vista-pv.com](https://vista-pv.com)
 
 ---
 
@@ -388,8 +387,7 @@ Vista-Energy (Mini-PC, lokal)
 ### Cloud-Infrastruktur (Cloudflare)
 ```
 vista-pv.com            -> Cloudflare Pages (Website + PayPal-Abo)
-license.vista-pv.com    -> Cloudflare Worker (Lizenz-API)
-admin.vista-pv.com      -> Cloudflare Worker (Admin-Dashboard)
+license.vista-energy.de -> Cloudflare Worker (Lizenz-API)
 D1 Database              -> Lizenzverwaltung
 R2 Bucket                -> Update-Archiv (OTA)
 ```
