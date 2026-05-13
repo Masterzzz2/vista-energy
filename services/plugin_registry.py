@@ -42,17 +42,16 @@ INVERTER_PLUGINS = {
         'class': 'FroniusGen24Inverter',
         'name': 'Fronius Symo GEN24',
     },
-    # Zukuenftige Plugins:
-    # 'sma_tripower': {
-    #     'module': 'services.inverters.sma_tripower',
-    #     'class': 'SMATriPowerInverter',
-    #     'name': 'SMA Sunny Tripower',
-    # },
-    # 'huawei_sun2000': {
-    #     'module': 'services.inverters.huawei_sun2000',
-    #     'class': 'HuaweiSun2000Inverter',
-    #     'name': 'Huawei SUN2000',
-    # },
+    'sma_tripower': {
+        'module': 'services.inverters.sma_tripower',
+        'class': 'SMATriPowerInverter',
+        'name': 'SMA Sunny Tripower',
+    },
+    'huawei_sun2000': {
+        'module': 'services.inverters.huawei_sun2000',
+        'class': 'HuaweiSun2000Inverter',
+        'name': 'Huawei SUN2000',
+    },
 }
 
 WALLBOX_PLUGINS = {
@@ -61,11 +60,21 @@ WALLBOX_PLUGINS = {
         'class': 'FroniusWattPilotWallbox',
         'name': 'Fronius WattPilot (OCPP)',
     },
-    # 'goe_charger': {
-    #     'module': 'services.wallboxes.goe_charger',
-    #     'class': 'GoEChargerWallbox',
-    #     'name': 'go-e Charger',
-    # },
+    'goe_charger': {
+        'module': 'services.wallboxes.goe_charger',
+        'class': 'GoEChargerWallbox',
+        'name': 'go-e Charger',
+    },
+    'openwb': {
+        'module': 'services.wallboxes.openwb',
+        'class': 'OpenWBWallbox',
+        'name': 'OpenWB',
+    },
+    'keba_kecontact': {
+        'module': 'services.wallboxes.keba_kecontact',
+        'class': 'KEBAKeContactWallbox',
+        'name': 'KEBA KeContact P30',
+    },
 }
 
 BATTERY_PLUGINS = {

@@ -1,31 +1,88 @@
 # Vista-Energy — Konfiguration (Beispiel)
 # Kopieren Sie diese Datei nach config.yaml und passen Sie die Werte an
 
+# ==================================================================
+# Wechselrichter — waehlen Sie Ihren Hersteller
+# ==================================================================
 inverter:
   type: fronius_gen24          # fronius_gen24 | sma_tripower | huawei_sun2000
   ip: 192.168.1.xxx            # IP-Adresse Ihres Wechselrichters
   modbus_port: 502
-  modbus_unit: 1
+  modbus_unit: 1               # Fronius: 1, SMA: 3, Huawei: 1
 
+  # SMA-spezifisch:
+  # type: sma_tripower
+  # ip: 192.168.1.85
+  # modbus_unit: 3
+
+  # Huawei-spezifisch (SDongle/SmartLogger IP):
+  # type: huawei_sun2000
+  # ip: 192.168.1.90
+  # max_charge_w: 5000          # Max. Batterie-Ladeleistung in Watt
+
+# ==================================================================
+# Stromtarif
+# ==================================================================
 tariff:
-  type: tibber                 # tibber | awattar | fixed
+  type: tibber                 # tibber | fixed_price | dual_rate
   # api_token: YOUR_TIBBER_TOKEN  # Nur fuer Tibber
 
+  # Festpreis:
+  # type: fixed_price
+  # price_kwh: 0.30             # Preis pro kWh in EUR
+
+  # Doppeltarif (HT/NT):
+  # type: dual_rate
+  # ht_price: 0.32
+  # nt_price: 0.22
+  # nt_start: "22:00"
+  # nt_end: "06:00"
+
+# ==================================================================
+# PV-Anlage
+# ==================================================================
 pv:
   kwp: 10.0                   # Installierte PV-Leistung in kWp
   tilt: 30                    # Neigungswinkel in Grad
   azimuth: 0                  # Ausrichtung (0=Sued, -90=Ost, 90=West)
 
+# ==================================================================
+# Batterie
+# ==================================================================
 battery:
   type: byd_hvs               # byd_hvs | lg_chem | generic
   capacity_kwh: 10.0          # Gesamtkapazitaet in kWh
   usable_kwh: 9.0             # Nutzbare Kapazitaet in kWh
   min_soc: 5                  # Minimaler Ladestand in %
 
+# ==================================================================
+# Standort (fuer Wettervorhersage & PV-Prognose)
+# ==================================================================
 location:
   lat: 48.00                  # Breitengrad
   lon: 11.00                  # Laengengrad
 
+# ==================================================================
+# Wallbox — waehlen Sie Ihre Wallbox
+# ==================================================================
 wallbox:
-  type: fronius_wattpilot      # fronius_wattpilot | goe_charger | openwb | keba
-  ocpp_ws: ws://127.0.0.1:8889  # OCPP WebSocket URL
+  type: fronius_wattpilot      # fronius_wattpilot | goe_charger | openwb | keba_kecontact
+
+  # Fronius WattPilot (OCPP):
+  # type: fronius_wattpilot
+  # ocpp_ws: ws://127.0.0.1:8889
+
+  # go-e Charger (HTTP API v2):
+  # type: goe_charger
+  # ip: 192.168.1.100
+
+  # OpenWB (MQTT):
+  # type: openwb
+  # ip: 192.168.1.110
+  # mqtt_port: 1883
+  # chargepoint: 0
+  # version: 2                  # 1 oder 2
+
+  # KEBA KeContact P30 (UDP):
+  # type: keba_kecontact
+  # ip: 192.168.1.120

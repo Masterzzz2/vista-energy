@@ -24,8 +24,11 @@ numpy>=1.26.0
 # Database
 sqlalchemy>=2.0.0
 
-# Modbus (Batterie/Wechselrichter-Steuerung)
+# Modbus (Batterie/Wechselrichter-Steuerung — SMA, Huawei, Fronius)
 pymodbus>=3.5.0
+
+# MQTT (OpenWB Wallbox)
+paho-mqtt>=2.0.0
 
 # Utils
 python-dateutil>=2.8.0
