@@ -141,7 +141,7 @@ class BatteryModbus:
     def set_charge_limit_pct(self, pct: float, revert_seconds: int = 0):
         """Setzt Lade-Limit in % (0 = kein Laden, 100 = voll erlaubt).
 
-        revert_seconds = 0 bedeutet "permanent bis ueberschrieben".
+        revert_seconds = 0 bedeutet \"permanent bis ueberschrieben\".
         Wenn > 0, faellt der Wert nach dieser Zeit wieder auf 100% zurueck.
         """
         pct = max(0.0, min(100.0, float(pct)))
@@ -177,7 +177,15 @@ class BatteryModbus:
             log.info(f'StorCtl_Mod {cur} -> {new}')
 
     def release(self):
-        """Alle Limits zuruecksetzen, Steuerung an Inverter zurueckgeben."""
+        """Limits zuruecksetzen, aber Lade-Kontrolle behalten.
+
+        StorCtl_Mod = 1 (charge-control) statt 0 (no-control), damit der
+        GEN24 nicht eigenmaechtiq die PV-Ladung drosselt und Ueberschuss
+        ins Netz leitet, obwohl der Akku noch nicht voll ist.
+        InWRte = 100% sorgt dafuer, dass der volle PV-Ueberschuss in den
+        Akku fliesst. Revert-Timer (5 min) als Sicherheitsnetz falls
+        Vista-PV abstuerzt — danach faellt der GEN24 auf no-control zurueck.
+        """
         try:
             self._write(MODEL_124_PAYLOAD + OFF_IN_WRTE, _u16(10000))     # 100%
             self._write(MODEL_124_PAYLOAD + OFF_OUT_WRTE, _u16(10000))    # 100%
@@ -188,8 +196,11 @@ class BatteryModbus:
                 self._write(MODEL_124_PAYLOAD + OFF_CHA_GRI_SET, 1)
             except Exception:
                 pass
-            self._write(MODEL_124_PAYLOAD + OFF_STORCTL_MOD, 0)           # no-control
-            log.info('release: zurueck auf no-control, Limits 100%, MinRsvPct=0')
+            # Revert-Timer: 5 Minuten Sicherheitsnetz
+            self._write(MODEL_124_PAYLOAD + OFF_RVRT_TMS, 300)
+            # charge-control statt no-control: GEN24 darf PV-Ladung nicht drosseln
+            self._write(MODEL_124_PAYLOAD + OFF_STORCTL_MOD, 1)
+            log.info('release: charge-control, Limits 100%, MinRsvPct=0, revert=300s')
         except Exception as e:
             log.warning(f'release failed: {e}')
 
