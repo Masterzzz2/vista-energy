@@ -1642,23 +1642,23 @@ def apply_battery_control(plan: dict):
         current_soc = float(plan.get('current_soc') or 0)
         target_soc = float(plan.get('target_soc_1830') or 0)
         if current_soc < target_soc - 1.0:
+            _battery_modbus.release()
             if _last_battery_action['action'] != 'released':
-                _battery_modbus.release()
-                _last_battery_action = {'action': 'released', 'pct': 100}
                 logger.info(
                     f'Battery release (SOC {current_soc:.1f}% unter Ziel {target_soc:.1f}%, '
                     'PV-Laden nicht begrenzen)'
                 )
+            _last_battery_action = {'action': 'released', 'pct': 100}
             return
 
         # Tageszeit beachten - nachts macht das Sperren keinen Sinn
         now = now_berlin()
         # Zwischen 06:00 und 18:30 ueberhaupt nur drosseln
         if not (now.replace(hour=6, minute=0) <= now <= now.replace(hour=18, minute=30)):
+            _battery_modbus.release()
             if _last_battery_action['action'] != 'released':
-                _battery_modbus.release()
-                _last_battery_action = {'action': 'released', 'pct': 100}
-                logger.info('Battery release (auseralb 06-18:30)')
+                logger.info('Battery release (ausserhalb 06-18:30)')
+            _last_battery_action = {'action': 'released', 'pct': 100}
             return
 
         # GRUNDREGEL: Akku IMMER voll laden!
@@ -1666,13 +1666,15 @@ def apply_battery_control(plan: dict):
         # Darueber hinaus: PV-Ueberschuss geht IMMER in den Akku.
         # Erst wenn Akku voll (100% / BMS sagt FULL) geht Strom ins Netz.
         # → Keine Ladebegrenzung, kein Overshoot-Limit, kein Preis-Check!
+        # release() nutzt StorCtl_Mod=1 + Revert-Timer 300s, daher muss es
+        # regelmaessig aufgerufen werden um den Timer zu erneuern.
+        _battery_modbus.release()
         if _last_battery_action['action'] != 'released':
-            _battery_modbus.release()
-            _last_battery_action = {'action': 'released', 'pct': 100}
             logger.info(
                 f'Battery release (Eigenverbrauch-Vorrang: '
                 f'Akku immer voll laden, SOC={current_soc:.1f}%)'
             )
+        _last_battery_action = {'action': 'released', 'pct': 100}
     except Exception as e:
         logger.warning(f'apply_battery_control failed: {e}')
 
