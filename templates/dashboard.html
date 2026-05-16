@@ -214,6 +214,24 @@ input[type=number],input[type=text],select{background:var(--panel2);color:var(--
       <button class="btn" data-mode="fast" id="m-fast">🚀 SCHNELL<br><span style="font-weight:400;font-size:11px;color:var(--muted)">alles, max Power</span></button>
       <button class="btn" data-mode="off" id="m-off">⏸ AUS<br><span style="font-weight:400;font-size:11px;color:var(--muted)">Wallbox sperren</span></button>
     </div>
+    <!-- Modus-Persistenz Toggle -->
+    <div id="mode-persist-box" style="margin-bottom:10px;padding:10px 12px;background:var(--panel2);border-radius:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:13px;color:var(--muted)">Modus beim naechsten Auto:</span>
+      <label style="display:inline-flex;align-items:center;cursor:pointer;gap:6px">
+        <span id="persist-label-off" style="font-size:12px;font-weight:600;color:var(--muted)">Zuruecksetzen</span>
+        <div style="position:relative;width:44px;height:24px" onclick="toggleModePersist()">
+          <input type="checkbox" id="persist-toggle" style="display:none">
+          <div id="persist-track" style="width:44px;height:24px;border-radius:12px;background:#64748b;transition:background .2s;cursor:pointer"></div>
+          <div id="persist-knob" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:pointer"></div>
+        </div>
+        <span id="persist-label-on" style="font-size:12px;font-weight:600;color:var(--accent)">Fixiert</span>
+      </label>
+      <select id="persist-default-mode" onchange="saveModePersist()" style="display:none;font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg)">
+        <option value="eco">ECO</option>
+        <option value="mix">MIX</option>
+        <option value="fast">SCHNELL</option>
+      </select>
+    </div>
     <div id="wb-state" class="note">…</div>
     <!-- Aktive Session (RFID + Live-kWh) -->
     <div id="wb-session" style="display:none;margin-top:10px;padding:10px 12px;background:linear-gradient(135deg,rgba(34,211,238,.10),rgba(61,220,132,.10));border:1px solid var(--line);border-radius:10px"></div>
@@ -714,7 +732,7 @@ async function setProgramEnabled(enabled){
     return;
   }
   renderProgramState(r.program);
-  await Promise.all([loadAutomationStatus(), loadAll(), refreshForceChargeStatus()]); if(document.getElementById('card-threshold')) loadThresholds();
+  await Promise.all([loadAutomationStatus(), loadAll(), refreshForceChargeStatus(), loadModePersist()]); if(document.getElementById('card-threshold')) loadThresholds();
 }
 
 function toggleProgram(){
@@ -730,6 +748,7 @@ async function loadAll(){
 	    ]);
     renderProgramState(strategy.program);
     render(strategy, battery);
+    checkSessionEnd(active);
     renderActiveSession(active);
     $('last-update').textContent = new Date().toLocaleTimeString('de-DE');
   }catch(e){
@@ -865,6 +884,69 @@ function render(s, bm){
     el.innerHTML = html;
   }
 
+}
+
+// --- Modus-Persistenz ---
+let modePersistState = {sticky: true, default_mode: 'eco'};
+let lastSessionActive = null;
+
+async function loadModePersist(){
+  try{
+    const d = await api('/api/wallbox/mode-persist');
+    modePersistState = d;
+    renderPersistToggle(d.sticky, d.default_mode);
+  }catch(e){ console.error('persist load', e); }
+}
+
+function renderPersistToggle(sticky, defaultMode){
+  const track = $('persist-track');
+  const knob = $('persist-knob');
+  const sel = $('persist-default-mode');
+  const labelOn = $('persist-label-on');
+  const labelOff = $('persist-label-off');
+  if(sticky){
+    track.style.background = 'var(--accent, #22d3ee)';
+    knob.style.left = '22px';
+    labelOn.style.color = 'var(--accent, #22d3ee)';
+    labelOff.style.color = 'var(--muted)';
+    sel.style.display = 'none';
+  }else{
+    track.style.background = '#64748b';
+    knob.style.left = '2px';
+    labelOn.style.color = 'var(--muted)';
+    labelOff.style.color = '#f59e0b';
+    sel.style.display = '';
+    sel.value = defaultMode || 'eco';
+  }
+}
+
+async function toggleModePersist(){
+  modePersistState.sticky = !modePersistState.sticky;
+  renderPersistToggle(modePersistState.sticky, modePersistState.default_mode);
+  await saveModePersist();
+}
+
+async function saveModePersist(){
+  const sel = $('persist-default-mode');
+  const defaultMode = sel ? sel.value : 'eco';
+  modePersistState.default_mode = defaultMode;
+  try{
+    await api('/api/wallbox/mode-persist', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({sticky: modePersistState.sticky, default_mode: defaultMode})
+    });
+  }catch(e){ console.error('persist save', e); }
+}
+
+function checkSessionEnd(active){
+  const isActive = !!(active && active.active && active.session);
+  if(lastSessionActive === true && isActive === false && !modePersistState.sticky){
+    api('/api/wallbox/mode', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({mode: modePersistState.default_mode || 'eco'})
+    }).then(()=> loadAll()).catch(e=> console.error('mode reset', e));
+  }
+  lastSessionActive = isActive;
 }
 
 // --- Aktionen ---

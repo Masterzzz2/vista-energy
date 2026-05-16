@@ -27,6 +27,7 @@ PROGRAM_STATE_FILE = NEXUS_DIR / 'program_state.json'
 POOL_STATE_FILE = NEXUS_DIR / 'pool_state.json'
 UPDATE_STATE_FILE = NEXUS_DIR / 'update_state.json'
 EV_VEHICLES_FILE = NEXUS_DIR / 'ev_vehicles.json'
+WALLBOX_MODE_PERSIST_FILE = NEXUS_DIR / 'wallbox_mode_persist.json'
 OCPP_CONTROL_WS = 'ws://127.0.0.1:8889'
 
 # EV-Fahrzeuge mit Akkugroesse (kWh) fuer SOC-Schaetzung
@@ -432,6 +433,27 @@ def write_wallbox_mode(mode: str):
     WALLBOX_MODE_FILE.write_text(mode + '\n')
     # mode-hint zum OCPP server schicken (informativ)
     wallbox_send_cmd({'cmd': 'mode_hint', 'mode': mode})
+
+
+def read_wallbox_mode_persist() -> dict:
+    """Lese Modus-Persist-Einstellungen: sticky (bool) + default_mode (str)."""
+    try:
+        if WALLBOX_MODE_PERSIST_FILE.exists():
+            return json.loads(WALLBOX_MODE_PERSIST_FILE.read_text())
+    except Exception:
+        pass
+    return {'sticky': True, 'default_mode': 'eco'}
+
+
+def write_wallbox_mode_persist(sticky: bool, default_mode: str = 'eco') -> dict:
+    default_mode = (default_mode or 'eco').lower()
+    if default_mode == 'standard':
+        default_mode = 'mix'
+    if default_mode not in VALID_MODES:
+        default_mode = 'eco'
+    state = {'sticky': bool(sticky), 'default_mode': default_mode}
+    WALLBOX_MODE_PERSIST_FILE.write_text(json.dumps(state))
+    return state
 
 
 def _bool_value(value, default: bool = True) -> bool:
@@ -3471,7 +3493,20 @@ def api_wallbox_mode():
             return jsonify({'success': True, 'mode': mode})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
-    return jsonify({'mode': read_wallbox_mode(), 'program': read_program_state()})
+    return jsonify({'mode': read_wallbox_mode(), 'program': read_program_state(),
+                    'persist': read_wallbox_mode_persist()})
+
+
+@app.route('/api/wallbox/mode-persist', methods=['GET', 'POST'])
+def api_wallbox_mode_persist():
+    """Modus-Beibehalten-Einstellung: sticky=true behalt Modus, sticky=false setzt auf default_mode zurueck."""
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        sticky = data.get('sticky', True)
+        default_mode = data.get('default_mode', 'eco')
+        state = write_wallbox_mode_persist(sticky, default_mode)
+        return jsonify({'success': True, **state})
+    return jsonify(read_wallbox_mode_persist())
 
 
 @app.route('/api/wallbox/strategy')
