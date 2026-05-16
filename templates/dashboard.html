@@ -152,7 +152,8 @@ input[type=number],input[type=text],select{background:var(--panel2);color:var(--
 		    </nav>
 		    {% if readonly %}<span class="chip" title="Gastzugang">Gast · nur Ansicht</span>{% endif %}
 		    <button class="btn small program-toggle on" id="program-toggle" type="button" onclick="toggleProgram()">Programm AN</button>
-	    <button class="btn small theme-toggle" id="theme-toggle" type="button" onclick="toggleTheme()">Normal</button>
+	    <button class="btn small" id="lang-toggle" type="button" onclick="toggleLang()" style="min-width:36px">EN</button>
+    <button class="btn small theme-toggle" id="theme-toggle" type="button" onclick="toggleTheme()">Normal</button>
 	    <div class="sub" id="last-update">–</div>
 	    <a href="/logout" class="btn small" style="text-decoration:none;padding:6px 10px;font-size:12px" title="Logout">⏏</a>
 	  </div>
@@ -175,7 +176,7 @@ input[type=number],input[type=text],select{background:var(--panel2);color:var(--
   <!-- TAGESPLAN -->
   <section class="card" style="grid-column:1/-1;background:linear-gradient(135deg,rgba(34,211,238,.08),rgba(61,220,132,.04))">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-      <h2 style="margin:0">🤖 Tagesplan</h2>
+      <h2 style="margin:0" data-i18n="daily_plan">🤖 Tagesplan</h2>
       <div id="plan-weather" class="note">…</div>
     </div>
     <div id="plan-recommendations" style="display:flex;flex-direction:column;gap:10px;margin-top:14px"></div>
@@ -184,52 +185,52 @@ input[type=number],input[type=text],select{background:var(--panel2);color:var(--
   <!-- VOLLAUTOMATIK -->
   <section class="card auto-card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-      <h2 style="margin:0">⚡ Vollautomatisch</h2>
+      <h2 style="margin:0" data-i18n="h_auto">⚡ Vollautomatisch</h2>
       <span class="chip" id="auto-mode-chip">…</span>
     </div>
     <div class="auto-grid">
       <button class="btn active auto-primary" id="auto-full-btn" onclick="setAutomationMode('ki')">
-        Vollautomatisch aktivieren
-        <span class="subtxt">Forecast + Tibber + Lernprofil regeln Akku und Wallbox</span>
+        <span data-i18n="auto_activate">Vollautomatisch aktivieren</span>
+        <span class="subtxt" data-i18n="auto_sub">Forecast + Tibber + Lernprofil regeln Akku und Wallbox</span>
       </button>
-	      <div class="auto-stat"><div class="lbl">Lernphase</div><div class="val" id="auto-learning">–</div></div>
-	      <div class="auto-stat"><div class="lbl">Morgen PV</div><div class="val" id="auto-pv-tomorrow">–</div></div>
-	      <div class="auto-stat"><div class="lbl">Ziel 18:30</div><div class="val" id="auto-target">–</div></div>
-	      <div class="auto-stat"><div class="lbl">Netzladung</div><div class="val" id="auto-grid-charge">–</div></div>
+	      <div class="auto-stat"><div class="lbl" data-i18n="lbl_learning">Lernphase</div><div class="val" id="auto-learning">–</div></div>
+	      <div class="auto-stat"><div class="lbl" data-i18n="lbl_pv_tmrw">Morgen PV</div><div class="val" id="auto-pv-tomorrow">–</div></div>
+	      <div class="auto-stat"><div class="lbl" data-i18n="lbl_target">Ziel 18:30</div><div class="val" id="auto-target">–</div></div>
+	      <div class="auto-stat"><div class="lbl" data-i18n="lbl_grid_charge">Netzladung</div><div class="val" id="auto-grid-charge">–</div></div>
 	    </div>
     <div class="row" style="margin-top:10px">
-      <button class="btn small" onclick="setAutomationMode('auto')">Automatisch</button>
-      <button class="btn small" onclick="setAutomationMode('manual')">Manuell</button>
-      <button class="btn small" onclick="loadAutomationStatus()">Status aktualisieren</button>
+      <button class="btn small" onclick="setAutomationMode('auto')" data-i18n="btn_auto">Automatisch</button>
+      <button class="btn small" onclick="setAutomationMode('manual')" data-i18n="btn_manual">Manuell</button>
+      <button class="btn small" onclick="loadAutomationStatus()" data-i18n="btn_refresh">Status aktualisieren</button>
     </div>
     <div class="auto-status" id="auto-status">…</div>
   </section>
 
   <!-- WALLBOX MODE -->
   <section class="card">
-    <h2>🔌 Wallbox Modus</h2>
+    <h2 data-i18n="h_wallbox">🔌 Wallbox Modus</h2>
     <div class="row" style="margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <button class="btn" data-mode="eco" id="m-eco">🌿 ECO<br><span style="font-weight:400;font-size:11px;color:var(--muted)">nur PV-Überschuss</span></button>
-      <button class="btn" data-mode="mix" id="m-mix">🧠 MIX<br><span style="font-weight:400;font-size:11px;color:var(--muted)">Netz + PV smart</span></button>
-      <button class="btn" data-mode="fast" id="m-fast">🚀 SCHNELL<br><span style="font-weight:400;font-size:11px;color:var(--muted)">alles, max Power</span></button>
-      <button class="btn" data-mode="off" id="m-off">⏸ AUS<br><span style="font-weight:400;font-size:11px;color:var(--muted)">Wallbox sperren</span></button>
+      <button class="btn" data-mode="eco" id="m-eco">🌿 ECO<br><span style="font-weight:400;font-size:11px;color:var(--muted)" data-i18n="wb_eco">nur PV-Überschuss</span></button>
+      <button class="btn" data-mode="mix" id="m-mix">🧠 MIX<br><span style="font-weight:400;font-size:11px;color:var(--muted)" data-i18n="wb_mix">Netz + PV smart</span></button>
+      <button class="btn" data-mode="fast" id="m-fast">🚀 SCHNELL<br><span style="font-weight:400;font-size:11px;color:var(--muted)" data-i18n="wb_fast">alles, max Power</span></button>
+      <button class="btn" data-mode="off" id="m-off">⏸ AUS<br><span style="font-weight:400;font-size:11px;color:var(--muted)" data-i18n="wb_off">Wallbox sperren</span></button>
     </div>
     <!-- Modus-Persistenz Toggle -->
     <div id="mode-persist-box" style="margin-bottom:10px;padding:10px 12px;background:var(--panel2);border-radius:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:13px;color:var(--muted)">Modus beim naechsten Auto:</span>
+      <span style="font-size:13px;color:var(--muted)" data-i18n="persist_label">Modus beim naechsten Auto:</span>
       <label style="display:inline-flex;align-items:center;cursor:pointer;gap:6px">
-        <span id="persist-label-off" style="font-size:12px;font-weight:600;color:var(--muted)">Zuruecksetzen</span>
+        <span id="persist-label-off" style="font-size:12px;font-weight:600;color:var(--muted)" data-i18n="persist_reset">Zuruecksetzen</span>
         <div style="position:relative;width:44px;height:24px" onclick="toggleModePersist()">
           <input type="checkbox" id="persist-toggle" style="display:none">
           <div id="persist-track" style="width:44px;height:24px;border-radius:12px;background:#64748b;transition:background .2s;cursor:pointer"></div>
           <div id="persist-knob" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:pointer"></div>
         </div>
-        <span id="persist-label-on" style="font-size:12px;font-weight:600;color:var(--accent)">Fixiert</span>
+        <span id="persist-label-on" style="font-size:12px;font-weight:600;color:var(--accent)" data-i18n="persist_fixed">Fixiert</span>
       </label>
       <select id="persist-default-mode" onchange="saveModePersist()" style="display:none;font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg)">
         <option value="eco">ECO</option>
         <option value="mix">MIX</option>
-        <option value="fast">SCHNELL</option>
+        <option value="fast" data-i18n="opt_fast">SCHNELL</option>
       </select>
     </div>
     <div id="wb-state" class="note">…</div>
@@ -237,7 +238,7 @@ input[type=number],input[type=text],select{background:var(--panel2);color:var(--
     <div id="wb-session" style="display:none;margin-top:10px;padding:10px 12px;background:linear-gradient(135deg,rgba(34,211,238,.10),rgba(61,220,132,.10));border:1px solid var(--line);border-radius:10px"></div>
     <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <span class="note">Manuell:</span>
+      <span class="note" data-i18n="lbl_manual">Manuell:</span>
       <button class="btn small" onclick="setCurrent(6)">6 A</button>
       <button class="btn small" onclick="setCurrent(10)">10 A</button>
       <button class="btn small" onclick="setCurrent(13)">13 A</button>
@@ -249,16 +250,16 @@ input[type=number],input[type=text],select{background:var(--panel2);color:var(--
 
 	  <!-- LIVE FLOW -->
 	  <section class="card">
-	    <h2>⚡ Live-Energiefluss</h2>
+	    <h2 data-i18n="h_flow">⚡ Live-Energiefluss</h2>
     <div class="flow">
       <div class="item"><div class="lbl" style="color:var(--pv)">☀ PV</div><div class="val" id="f-pv">– W</div></div>
-      <div class="item"><div class="lbl" style="color:var(--akku)">🔋 Akku</div><div class="val" id="f-akku">– W</div></div>
-      <div class="item"><div class="lbl" style="color:var(--grid)">🏠 Netz</div><div class="val" id="f-grid">– W</div></div>
-      <div class="item"><div class="lbl" style="color:var(--load)">⚡ Last</div><div class="val" id="f-load">– W</div></div>
+      <div class="item"><div class="lbl" style="color:var(--akku)" data-i18n="lbl_bat">🔋 Akku</div><div class="val" id="f-akku">– W</div></div>
+      <div class="item"><div class="lbl" style="color:var(--grid)" data-i18n="lbl_grid">🏠 Netz</div><div class="val" id="f-grid">– W</div></div>
+      <div class="item"><div class="lbl" style="color:var(--load)" data-i18n="lbl_load">⚡ Last</div><div class="val" id="f-load">– W</div></div>
       <div class="item"><div class="lbl" style="color:var(--ev)">🚗 Wattpilot</div><div class="val" id="f-wp">– W</div></div>
-      <div class="item"><div class="lbl">💶 Preis</div><div class="val" id="f-price">– ct</div></div>
-      <div class="item"><div class="lbl" style="color:#ef4444">📥 Bezug/Mt</div><div class="val" id="f-grid-import">– kWh</div></div>
-      <div class="item"><div class="lbl" style="color:#22c55e">📤 Einsp./Mt</div><div class="val" id="f-grid-export">– kWh</div></div>
+      <div class="item"><div class="lbl" data-i18n="lbl_price">💶 Preis</div><div class="val" id="f-price">– ct</div></div>
+      <div class="item"><div class="lbl" style="color:#ef4444" data-i18n="lbl_import">📥 Bezug/Mt</div><div class="val" id="f-grid-import">– kWh</div></div>
+      <div class="item"><div class="lbl" style="color:#22c55e" data-i18n="lbl_export">📤 Einsp./Mt</div><div class="val" id="f-grid-export">– kWh</div></div>
 	    </div>
 	  </section>
 
@@ -2014,6 +2015,218 @@ async function executeFactoryReset(){
     }
   }catch(e){st.style.color='#ef4444';st.textContent='Verbindungsfehler: '+e.message;}
 }
+
+// ═══════════════════════════════════════
+// ═══ i18n / Language Toggle ═══════════
+// ═══════════════════════════════════════
+let currentLang = localStorage.getItem('ve_lang') || 'de';
+
+const I18N = {
+  // Header
+  daily_plan: 'Daily Plan', h_auto: 'Fully Automatic', h_wallbox: 'Wallbox Mode',
+  h_flow: 'Live Energy Flow',
+  // Auto section
+  auto_activate: 'Activate full automation',
+  auto_sub: 'Forecast + Tibber + learning profile control battery and wallbox',
+  lbl_learning: 'Learning', lbl_pv_tmrw: 'Tomorrow PV', lbl_target: 'Target 18:30',
+  lbl_grid_charge: 'Grid charge', btn_auto: 'Automatic', btn_manual: 'Manual',
+  btn_refresh: 'Refresh status',
+  // Wallbox
+  wb_eco: 'PV surplus only', wb_mix: 'Grid + PV smart', wb_fast: 'all, max power',
+  wb_off: 'Wallbox locked', persist_label: 'Mode for next car:',
+  persist_reset: 'Reset', persist_fixed: 'Fixed', opt_fast: 'FAST',
+  lbl_manual: 'Manual:',
+  // Live flow
+  lbl_bat: '🔋 Battery', lbl_grid: '🏠 Grid', lbl_load: '⚡ Load',
+  lbl_price: '💶 Price', lbl_import: '📥 Import/Mo', lbl_export: '📤 Export/Mo',
+  // Pool
+  lbl_power: 'Power', lbl_tomorrow: 'Tomorrow', lbl_pooltemp: 'Pool temp.',
+  lbl_target_temp: 'Target', btn_set_temp: 'Set temp', btn_pool_on: 'Pool ON',
+  btn_pool_off: 'Pool OFF',
+  // Battery
+  h_battery: '🔋 Battery BYD HVS 7.68',
+  bat_target_note: 'Target at 18:30', bat_projected: 'Projected',
+  bat_charge_limit: 'Charge limit', bat_discharge_limit: 'Discharge limit',
+  bat_control: 'Control', bat_min_reserve: 'Min reserve', bat_status: 'Status',
+  btn_lock_charge: '🚫 Lock charging', btn_release: '✅ Auto (free)',
+  fc_title: '⚡ Force-Charge from grid', fc_inactive: 'inactive',
+  fc_target_soc: 'Target SOC', fc_start: '⚡ Start charging', fc_stop: '⏹ Stop',
+  btn_hold: '🔒 Hold battery level', btn_hold_off: '🔓 Release',
+  // Strategy
+  h_strategy: '🧠 Current Strategy',
+  s_pv_today: 'PV today', s_pv_rest: 'PV remaining', s_tibber: 'Tibber price',
+  s_overshoot: 'Overshoot 18:30', s_ev_status: 'EV status', s_amps: 'Current target',
+  // Wattpilot
+  h_wattpilot: '🚗 Wattpilot',
+  w_connected: 'Connected', w_status: 'Status', w_model: 'Model', w_firmware: 'Firmware',
+  w_current: 'Current', w_phases: 'Phases', w_power: 'Charge power',
+  w_last: 'Last data',
+  // Heatpump
+  h_heatpump: '♨ Hot water heat pump (Bosch CS5000 DW)',
+  hp_lock: '⛔ Lock', hp_normal: '▶ Normal', hp_pv: '☀ PV-Boost', hp_instant: '⚡ Instant',
+  // Schedules
+  h_schedule: '📅 Charge Schedule',
+  sched_add: '➕ Add new schedule', sched_name: 'Name (e.g. Moni Mercedes)',
+  sched_weekdays: 'Weekdays:', sched_start: 'Start', sched_end: 'End',
+  sched_max_a: 'max A', sched_phases: 'Phases',
+  sched_holiday: 'Skip holidays in Bavaria', sched_save: '💾 Save schedule',
+  // RFID
+  h_rfid: '🪪 Charges per RFID chip',
+  rfid_all: 'all chips', rfid_csv: '📥 CSV',
+  rfid_start: 'Start', rfid_end: 'End', rfid_duration: 'Duration',
+  rfid_chip: 'Chip / Alias', rfid_kwh: 'kWh',
+  rfid_alias_manage: '⚙ Manage chip aliases',
+  rfid_alias_placeholder: 'RFID-ID (e.g. ABC123…)', rfid_alias_name: 'Alias (Werner / Moni / …)',
+  rfid_alias_save: '💾 Save', rfid_alias_tip: 'Tip: Charge briefly with the chip – the ID appears in the table. You can copy it and assign a name.',
+  // License
+  h_license: 'License', lic_status: 'Status', lic_remaining: 'Remaining',
+  lic_hwid: 'Hardware ID', lic_plan: 'Plan', lic_activate: 'Activate',
+  lic_deactivate: 'Deactivate', lic_pay_title: 'Activate directly here',
+  lic_monthly: 'Monthly', lic_yearly: 'Yearly', lic_popular: 'POPULAR',
+  lic_per_month: 'per month / automatic', lic_per_year: 'per year / 2 months free',
+  lic_onetime: 'one-time / forever',
+  // Update
+  h_update: 'System / Update', upd_installed: 'Installed', upd_available: 'Available',
+  upd_check: 'Check', upd_install: 'Install update',
+  // Thresholds
+  h_threshold: '⚡ Wallbox Price Thresholds',
+  thr_desc: 'Controls when the wallbox uses grid power (Mix mode). Below the lower threshold: full power from grid. Above the upper: PV surplus only.',
+  thr_low: '🟢 Cheap threshold (full power from grid)',
+  thr_high: '🔴 Expensive threshold (PV surplus only)',
+  thr_save: '💾 Save',
+  thr_full: 'FULL POWER', thr_partial: 'PARTIAL', thr_pv_only: 'PV ONLY',
+  // Chart
+  h_chart: 'History', ch_day: 'DAY', ch_month: 'MONTH', ch_year: 'YEAR', ch_total: 'TOTAL',
+  // Factory Reset
+  h_reset: '⚠ Factory Settings',
+  reset_desc: 'Resets Vista-PV completely: configuration, database, state files and license will be deleted. After the reset, the setup wizard starts again.',
+  reset_warn: 'This action cannot be undone!',
+  reset_btn: 'Reset to factory settings',
+  reset_confirm_text: 'Type <code style="background:var(--bg);padding:2px 6px;border-radius:4px">RESET</code> to continue:',
+  reset_execute: 'Delete irreversibly', reset_cancel: 'Cancel',
+  // Program toggle
+  prog_on: 'Program ON', prog_off: 'Program OFF',
+  // Misc
+  guest: 'Guest · view only',
+};
+
+function t(key){ return currentLang === 'en' && I18N[key] ? I18N[key] : null; }
+
+// Text-map: German original -> English translation (for elements without data-i18n)
+const TEXT_MAP = {
+  '🔋 Akku BYD HVS 7,68': '🔋 Battery BYD HVS 7.68',
+  'Ziel um 18:30:': 'Target at 18:30:', 'Projiziert:': 'Projected:',
+  'Lade-Limit': 'Charge limit', 'Entlade-Limit': 'Discharge limit',
+  'Steuerung': 'Control', 'Min-Reserve': 'Min reserve',
+  'WChaMax': 'WChaMax', 'Status': 'Status',
+  '🚫 Laden sperren': '🚫 Lock charging', '↘ 50 %': '↘ 50 %',
+  '✅ Auto (frei)': '✅ Auto (free)',
+  '⚡ Force-Charge aus Netz': '⚡ Force-Charge from grid',
+  'inaktiv': 'inactive', 'Ziel-SOC': 'Target SOC',
+  '⚡ Nachladen starten': '⚡ Start charging', '⏹ Stoppen': '⏹ Stop',
+  '🔒 Akkustand halten': '🔒 Hold battery level', '🔓 Freigeben': '🔓 Release',
+  '🧠 Aktuelle Strategie': '🧠 Current Strategy',
+  'PV heute': 'PV today', 'PV Rest': 'PV remaining',
+  'Tibber-Preis': 'Tibber price', 'Overshoot 18:30': 'Overshoot 18:30',
+  'EV-Status': 'EV status', 'Strom-Soll': 'Current target',
+  '🚗 Wattpilot': '🚗 Wattpilot',
+  'Verbunden': 'Connected', 'Modell': 'Model', 'Firmware': 'Firmware',
+  'Aktueller Strom': 'Current', 'Phasen': 'Phases',
+  'Lade-Power': 'Charge power', 'Letzte Daten': 'Last data', 'Tx-ID': 'Tx-ID',
+  '♨ Warmwasser-Wärmepumpe (Bosch CS5000 DW)': '♨ Hot water heat pump (Bosch CS5000 DW)',
+  '⛔ Sperre': '⛔ Lock', '▶ Normal': '▶ Normal',
+  '☀ PV-Boost': '☀ PV-Boost', '⚡ Sofort': '⚡ Instant',
+  '📅 Lade-Schedule': '📅 Charge Schedule',
+  '➕ Neue Schedule hinzufügen': '➕ Add new schedule',
+  'Wochentage:': 'Weekdays:',
+  'Feiertage in Bayern überspringen': 'Skip holidays in Bavaria',
+  '💾 Schedule speichern': '💾 Save schedule',
+  '🪪 Ladungen pro RFID-Chip': '🪪 Charges per RFID chip',
+  '📥 CSV': '📥 CSV', 'alle Chips': 'all chips',
+  'Start': 'Start', 'Ende': 'End', 'Dauer': 'Duration',
+  'Chip / Alias': 'Chip / Alias',
+  '⚙ Chip-Aliase verwalten': '⚙ Manage chip aliases',
+  '💾 Speichern': '💾 Save',
+  'Lizenz': 'License', 'Verbleibend': 'Remaining', 'Hardware-ID': 'Hardware ID',
+  'Plan': 'Plan', 'Aktivieren': 'Activate', 'Deaktivieren': 'Deactivate',
+  'Direkt hier aktivieren': 'Activate directly here',
+  'Monatlich': 'Monthly', 'Jaehrlich': 'Yearly',
+  'pro Monat / automatisch': 'per month / automatic',
+  'pro Jahr / 2 Monate gratis': 'per year / 2 months free',
+  'einmalig / fuer immer': 'one-time / forever',
+  'System / Update': 'System / Update', 'Installiert': 'Installed',
+  'Verfügbar': 'Available', 'Prüfen': 'Check', 'Update installieren': 'Install update',
+  '⚡ Wallbox Preis-Schwellen': '⚡ Wallbox Price Thresholds',
+  '🟢 Günstig-Schwelle (Volllast aus Netz)': '🟢 Cheap threshold (full power from grid)',
+  '🔴 Teuer-Schwelle (nur PV-Überschuss)': '🔴 Expensive threshold (PV surplus only)',
+  'VOLLLAST': 'FULL POWER', 'ANTEILIG': 'PARTIAL', 'NUR PV': 'PV ONLY',
+  'Verlauf': 'History', 'TAG': 'DAY', 'MONAT': 'MONTH', 'JAHR': 'YEAR', 'GESAMT': 'TOTAL',
+  '⚠ Werkeinstellungen': '⚠ Factory Settings',
+  'Werkeinstellungen zuruecksetzen': 'Reset to factory settings',
+  'Unwiderruflich loeschen': 'Delete irreversibly', 'Abbrechen': 'Cancel',
+  'Programm AN': 'Program ON', 'Programm AUS': 'Program OFF',
+  'EINFACH': 'SIMPLE', 'EXPERT': 'EXPERT',
+  'Leistung': 'Power', 'Morgen': 'Tomorrow', 'Temp setzen': 'Set temp',
+  'Pool AN': 'Pool ON', 'Pool AUS': 'Pool OFF',
+};
+
+// Reverse map for DE restoration
+const TEXT_MAP_REV = {};
+Object.entries(TEXT_MAP).forEach(([de,en]) => { TEXT_MAP_REV[en] = de; });
+
+function applyLang(lang){
+  currentLang = lang;
+  localStorage.setItem('ve_lang', lang);
+  document.documentElement.lang = lang;
+  $('lang-toggle').textContent = lang === 'de' ? 'EN' : 'DE';
+
+  // 1) data-i18n tagged elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if(lang === 'en' && I18N[key]){
+      if(!el._origText) el._origText = el.textContent;
+      el.textContent = I18N[key];
+    } else if(lang === 'de' && el._origText){
+      el.textContent = el._origText;
+    }
+  });
+
+  // 2) Text-map based translation for all other elements
+  const map = lang === 'en' ? TEXT_MAP : TEXT_MAP_REV;
+  const walker = document.createTreeWalker(document.querySelector('main') || document.body, NodeFilter.SHOW_TEXT);
+  while(walker.nextNode()){
+    const node = walker.currentNode;
+    const trimmed = node.textContent.trim();
+    if(trimmed && map[trimmed]){
+      node.textContent = node.textContent.replace(trimmed, map[trimmed]);
+    }
+  }
+
+  // 3) Special: h2 elements (may contain emoji prefix)
+  document.querySelectorAll('h2').forEach(h2 => {
+    if(h2.dataset.i18n) return;
+    const txt = h2.textContent.trim();
+    if(map[txt]) h2.textContent = map[txt];
+  });
+
+  // 4) Buttons, labels, th, summary
+  document.querySelectorAll('button, th, summary, .lbl').forEach(el => {
+    if(el.dataset.i18n) return;
+    const txt = el.textContent.trim();
+    if(map[txt]) el.textContent = map[txt];
+  });
+
+  // 5) Program toggle state
+  const pt = $('program-toggle');
+  if(pt) pt.textContent = lang==='en' ? (programEnabled?'Program ON':'Program OFF') : (programEnabled?'Programm AN':'Programm AUS');
+}
+
+function toggleLang(){
+  applyLang(currentLang === 'de' ? 'en' : 'de');
+}
+
+// Apply saved language on load
+if(currentLang === 'en') setTimeout(()=>applyLang('en'), 200);
 </script>
 </body>
 </html>
