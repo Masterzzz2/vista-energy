@@ -3100,6 +3100,100 @@ def api_wallbox_control():
 
 
 # ---------------------------------------------------------------------------
+# Factory Reset
+# ---------------------------------------------------------------------------
+
+@app.route('/api/factory-reset', methods=['POST'])
+def api_factory_reset():
+    """Alle Einstellungen und Daten zuruecksetzen (Werkeinstellungen)."""
+    if is_readonly_user():
+        return jsonify({'success': False, 'message': 'Keine Berechtigung'}), 403
+
+    data = request.get_json(silent=True) or {}
+    if data.get('confirm') != 'RESET':
+        return jsonify({'success': False, 'message': 'Bestaetigung fehlt'}), 400
+
+    import shutil
+
+    errors = []
+
+    # 1. Nexus-Dateien loeschen (State-Dateien)
+    nexus_files = [
+        WALLBOX_MODE_FILE, BATTERY_PLAN_FILE, CONTROLLER_STATE_FILE,
+        RFID_ALIASES_FILE, SCHEDULES_FILE, AUTOMATION_MODE_FILE,
+        PROGRAM_STATE_FILE, POOL_STATE_FILE, UPDATE_STATE_FILE,
+        EV_VEHICLES_FILE, NEXUS_DIR / 'wallbox_price_limits.json',
+        NEXUS_DIR / 'flask_secret.key',
+    ]
+    for f in nexus_files:
+        try:
+            if f.exists():
+                f.unlink()
+        except Exception as e:
+            errors.append(f'{f.name}: {e}')
+
+    # 2. Setup-Flag loeschen (damit Setup-Wizard wieder erscheint)
+    setup_file = NEXUS_DIR / 'setup_complete'
+    try:
+        if setup_file.exists():
+            setup_file.unlink()
+    except Exception as e:
+        errors.append(f'setup_complete: {e}')
+
+    # 3. config.yaml loeschen
+    app_dir = Path(__file__).resolve().parent
+    config_file = app_dir / 'config.yaml'
+    try:
+        if config_file.exists():
+            config_file.unlink()
+    except Exception as e:
+        errors.append(f'config.yaml: {e}')
+
+    # 4. .env zuruecksetzen (nur Vista-spezifische Keys entfernen)
+    env_file = app_dir / '.env'
+    try:
+        if env_file.exists():
+            vista_keys = {
+                'WEB_USER', 'WEB_PASSWORD', 'TIBBER_API_TOKEN', 'AWATTAR_ZONE',
+                'FORECAST_SOLAR_KWP', 'FORECAST_SOLAR_LAT', 'FORECAST_SOLAR_LON',
+                'OPEN_METEO_LAT', 'OPEN_METEO_LON', 'BATTERY_CAPACITY_KWH',
+                'BATTERY_USABLE_KWH', 'WATTPLOT_IP', 'WALLBOX_IP',
+                'LICENSE_KEY', 'PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET',
+            }
+            with open(env_file) as f:
+                lines = f.readlines()
+            kept = [l for l in lines if not any(l.startswith(k + '=') for k in vista_keys)]
+            with open(env_file, 'w') as f:
+                f.writelines(kept)
+    except Exception as e:
+        errors.append(f'.env: {e}')
+
+    # 5. SQLite-Datenbank loeschen
+    db_file = app_dir / 'energy_optimizer.db'
+    try:
+        if db_file.exists():
+            db_file.unlink()
+    except Exception as e:
+        errors.append(f'energy_optimizer.db: {e}')
+
+    logger.info('Factory reset durchgefuehrt')
+
+    if errors:
+        return jsonify({
+            'success': True,
+            'message': 'Werkeinstellungen zurueckgesetzt (mit Warnungen)',
+            'warnings': errors,
+            'restart_required': True,
+        })
+
+    return jsonify({
+        'success': True,
+        'message': 'Werkeinstellungen zurueckgesetzt. Neustart erforderlich.',
+        'restart_required': True,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Setup-Wizard (Onboarding fuer neue Kunden)
 # ---------------------------------------------------------------------------
 

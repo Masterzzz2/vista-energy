@@ -558,6 +558,28 @@ input[type=number],input[type=text],select{background:var(--panel2);color:var(--
     </div>
     <div class="chart-note" id="chart-info">…</div>
   </section>
+
+  <!-- FACTORY RESET -->
+  <section class="card" style="grid-column: 1 / -1; border: 1px solid #ef4444">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <h2 style="margin:0;color:#ef4444">&#9888; Werkeinstellungen</h2>
+    </div>
+    <div class="note" style="margin-top:8px;margin-bottom:14px;opacity:.7">
+      Setzt Vista-PV komplett zurueck: Konfiguration, Datenbank, State-Dateien und Lizenz werden geloescht. Nach dem Reset startet der Setup-Wizard erneut. <strong>Dieser Vorgang kann nicht rueckgaengig gemacht werden!</strong>
+    </div>
+    <div id="reset-area">
+      <button class="btn small warn" onclick="showFactoryReset()">Werkeinstellungen zuruecksetzen</button>
+    </div>
+    <div id="reset-confirm" style="display:none;margin-top:12px;padding:12px;background:rgba(239,68,68,.1);border:1px solid #ef4444;border-radius:8px">
+      <p style="font-size:.85rem;color:#ef4444;margin-bottom:8px;font-weight:600">Gib <code style="background:var(--bg);padding:2px 6px;border-radius:4px">RESET</code> ein um fortzufahren:</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="text" id="reset-input" placeholder="RESET eingeben..." style="flex:1;min-width:160px;padding:8px 12px;background:var(--bg);border:1px solid #ef4444;border-radius:8px;color:var(--txt);font-size:.9rem;outline:none">
+        <button class="btn small warn" onclick="executeFactoryReset()">Unwiderruflich loeschen</button>
+        <button class="btn small" onclick="hideFactoryReset()">Abbrechen</button>
+      </div>
+      <div id="reset-status" style="margin-top:8px;font-size:.85rem;display:none"></div>
+    </div>
+  </section>
   {% endif %}
 
 </main>
@@ -1877,6 +1899,39 @@ setInterval(loadSchedules, 30000);                   // Schedules 2x/min
 setInterval(loadHeatpump, 60000);                    // Heatpump 1x/min
 setInterval(loadUpdate, 300000);                     // Update-Status 5 min
 setInterval(loadLicense, 300000);                    // Lizenz-Status 5 min
+
+// Factory Reset
+function showFactoryReset(){
+  $('reset-confirm').style.display='block';
+  $('reset-input').value='';
+  $('reset-input').focus();
+  $('reset-status').style.display='none';
+}
+function hideFactoryReset(){
+  $('reset-confirm').style.display='none';
+  $('reset-input').value='';
+}
+async function executeFactoryReset(){
+  const val=$('reset-input').value.trim();
+  const st=$('reset-status');
+  if(val!=='RESET'){
+    st.style.display='block';st.style.color='#ef4444';
+    st.textContent='Bitte gib exakt "RESET" ein.';return;
+  }
+  st.style.display='block';st.style.color='var(--accent)';
+  st.textContent='Wird zurueckgesetzt...';
+  try{
+    const r=await fetch('/api/factory-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'RESET'})});
+    const d=await r.json();
+    if(d.success){
+      st.style.color='#22c55e';
+      st.textContent='Werkeinstellungen wiederhergestellt. Seite wird neu geladen...';
+      setTimeout(()=>window.location.href='/setup',2000);
+    }else{
+      st.style.color='#ef4444';st.textContent=d.message||'Fehler beim Zuruecksetzen.';
+    }
+  }catch(e){st.style.color='#ef4444';st.textContent='Verbindungsfehler: '+e.message;}
+}
 </script>
 </body>
 </html>
